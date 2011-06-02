@@ -1,6 +1,6 @@
 .classpath
 .project
-*.jar
+moparscape-classic.jar
 *.ipr
 *.iws
 *.iml
