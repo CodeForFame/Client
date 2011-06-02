@@ -1,0 +1,16 @@
+.classpath
+.project
+*.jar
+*.ipr
+*.iws
+*.iml
+*.class
+Client/
+data/
+bin
+build
+.*
+!.gitignore
+!.gitmodules
+!.gitkeep
+!.gitattributes
