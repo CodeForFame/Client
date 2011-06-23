@@ -105,7 +105,7 @@ public class mudclient extends GameWindowMiddleMan {
 		mc = new mudclient();
 		mc.appletMode = false;
 		loadCachedFile("Loading.rscd");
-		mc.setLogo(Toolkit.getDefaultToolkit().getImage("data" + File.separator + "Loading.rscd"));
+		mc.setLogo(Toolkit.getDefaultToolkit().getImage(Config.CONF_DIR + File.separator + "Loading.rscd"));
 		mc.createWindow(mc.windowWidth, mc.windowHeight + 15 - 8, "Angel Development", false);
 		mc.fog = false;
 		/**
@@ -9600,7 +9600,7 @@ public class mudclient extends GameWindowMiddleMan {
 	
 
 	public static File getFile(String filename) {
-		File file = new File("data" + File.separator + filename);
+		File file = new File(Config.CONF_DIR + File.separator + filename);
 		if (file.isFile() && file.exists()) {
 			return file;
 		} else return null;

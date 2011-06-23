@@ -26,8 +26,6 @@ public abstract class GameWindowMiddleMan extends GameWindow {
 			return;
 		}
 		try {
-		while(true) {
-		try {
 			username = user;
 			user = DataOperations.addCharacters(user, 20);
 			password = pass;
@@ -52,10 +50,7 @@ public abstract class GameWindowMiddleMan extends GameWindow {
 			streamClass.addString(mudclient.class.toString());
 			// edit
 			streamClass.finalisePacket();
-		} catch(Exception e) {
 			
-		}}
-			/*
 			long sessionID = streamClass.read8ByteLong();
 			if (sessionID == 0L) {
 				loginScreenPrint("Login server offline.",
@@ -154,7 +149,7 @@ public abstract class GameWindowMiddleMan extends GameWindow {
 			// 99 = Mod/Admin
 			loginScreenPrint("Error unable to login.",
 					"Unrecognised response code");
-			return;*/
+			return;
 		} catch (Exception exception) {
 			System.out.println(String.valueOf(exception));
 		}
@@ -215,7 +210,7 @@ public abstract class GameWindowMiddleMan extends GameWindow {
 		drawString(g, s, font, c / 2, c1 / 2 - 10);
 		drawString(g, s1, font, c / 2, c1 / 2 + 10);
 	}
-
+	
 	protected final void sendPingPacketReadPacketData() {
 		long l = System.currentTimeMillis();
 		if (streamClass.containsData())

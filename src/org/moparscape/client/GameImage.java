@@ -1503,8 +1503,19 @@ public class GameImage implements ImageProducer, ImageObserver {
 			System.out.println("error in transparent sprite plot routine");
 		}
 	}
+	
+	public static void loadFont(String smallName, int fontNumber, GameWindow gameWindow) {
+		while(!loadFont_(smallName, fontNumber, gameWindow)) {
+			// An error is only thrown for a random font one time.
+			// So, it results in exactly one error.
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException e) {}
+			
+		}
+	}
 
-	public static void loadFont(String smallName, int fontNumber,
+	private static boolean loadFont_(String smallName, int fontNumber,
 			GameWindow gameWindow) {
 		boolean flag = false;
 		boolean addCharWidth = false;
@@ -1540,8 +1551,14 @@ public class GameImage implements ImageProducer, ImageObserver {
 					charSetOffset, gameWindow, fontNumber, addCharWidth);
 
 		aByteArrayArray336[fontNumber] = new byte[anInt350];
-		for (int i1 = 0; i1 < anInt350; i1++)
-			aByteArrayArray336[fontNumber][i1] = aByteArray351[i1];
+		for (int i1 = 0; i1 < anInt350; i1++) {
+			try {
+				aByteArrayArray336[fontNumber][i1] = aByteArray351[i1];
+			} catch (Exception e) {
+				e.printStackTrace();
+				return false;
+			}
+		}
 
 		if (style == 1 && aBooleanArray349[fontNumber]) {
 			aBooleanArray349[fontNumber] = false;
@@ -1551,6 +1568,7 @@ public class GameImage implements ImageProducer, ImageObserver {
 			aBooleanArray349[fontNumber] = false;
 			loadFont("d" + size + "p", fontNumber, gameWindow);
 		}
+		return true;
 	}
 
 	public static void drawLetter(Font font, FontMetrics fontmetrics,
@@ -1587,6 +1605,7 @@ public class GameImage implements ImageProducer, ImageObserver {
 		try {
 			pixelgrabber.grabPixels();
 		} catch (InterruptedException _ex) {
+			_ex.printStackTrace();
 			return;
 		}
 		image.flush();

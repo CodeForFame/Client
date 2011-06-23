@@ -165,7 +165,7 @@ public class GameWindow extends Applet implements Runnable {
 			drawLoadingLogo();
 			drawLoadingScreen(0, "Loading...");
 			startGame();
-
+			loadFonts();
 			loadingScreen = 0;
 		}
 		int i = 0;
@@ -426,7 +426,6 @@ public class GameWindow extends Applet implements Runnable {
 		getLoadingGraphics().setColor(Color.black);
 		getLoadingGraphics().drawImage(loadingLogo, appletWidth, appletHeight,
 				5, 0, this);
-		loadFonts();
 	}
 
 	final void drawLoadingScreen(int i, String s) {
