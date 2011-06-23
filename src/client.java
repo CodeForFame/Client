@@ -6,9 +6,9 @@ import java.util.Map;
 
 import org.moparscape.iface.ClientInterface;
 import org.moparscape.userver.Server;
-import org.moparscape.client.Inputs;
-import org.moparscape.client.mudclient;
-import org.moparscape.client.util.Config;
+import org.rscdaemon.client.Inputs;
+import org.rscdaemon.client.mudclient;
+import org.rscdaemon.client.util.Config;
 
 public class client extends mudclient implements ClientInterface {
 

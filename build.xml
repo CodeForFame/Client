@@ -7,7 +7,7 @@
 	<target name="build">
 		<mkdir dir="${build}" />
 		<delete file="${jar}" />
-		<javac srcdir="${src}" destdir="${build}" debug="on" target="1.5">
+		<javac srcdir="${src}" destdir="${build}" debug="on" target="1.6">
 			<classpath>
 				<pathelement location="${lib}/defs.jar" />
 				<pathelement location="${lib}/xpp3.jar" />
@@ -22,7 +22,7 @@
 		</jar>
 	</target>
 	<target name="runclient">
-		<java classname="org.moparscape.client.mudclient" fork="true">
+		<java classname="org.rscdaemon.client.mudclient" fork="true">
 			<arg value="${settings}" />
 			<classpath>
 				<pathelement path="${jar}/" />
