@@ -10,7 +10,7 @@ public class Downloader {
 
 	public static void download(File f) throws Exception {
 		URL url = new URL(Config.CACHE_URL + f.getName());
-		System.out.println("Downloading " + url.toString());
+		System.out.printf("Downloading %s from %s.%n", f.getAbsolutePath(), url.toString());
 		ReadableByteChannel rbc = Channels.newChannel(url.openStream());
 		FileOutputStream fos = new FileOutputStream(Config.CONF_DIR + File.separator + f.getName());
 		int i = 0;

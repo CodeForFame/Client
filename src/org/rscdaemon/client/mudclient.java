@@ -9873,7 +9873,7 @@ public class mudclient extends GameWindowMiddleMan {
 
 	public static File loadCachedFile(String filename) {
 		File f = new File(Config.CONF_DIR + File.separator + filename);
-		System.out.println(f.getAbsolutePath());
+		System.out.printf("Checking for %s.%n", f.getAbsolutePath());
 		if (!f.exists()) {
 			try {
 				Downloader.download(f);
