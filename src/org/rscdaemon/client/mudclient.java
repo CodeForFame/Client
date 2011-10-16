@@ -1,6 +1,5 @@
 package org.rscdaemon.client;
 
-
 import java.awt.Color;
 
 import java.awt.Font;
@@ -31,17 +30,18 @@ import org.rscdaemon.client.model.Resolutions;
 import org.rscdaemon.client.model.Sprite;
 import org.rscdaemon.client.util.Config;
 import org.rscdaemon.client.util.DataConversions;
+import org.rscdaemon.client.util.Downloader;
 
 import defs.ItemDef;
 import defs.NPCDef;
 
 public class mudclient extends GameWindowMiddleMan {
-	
+
 	public static Properties config = Config.loadConfig();
-	
+
 	InterfaceGUI smithingscreen = null;
 	InterfaceGUI questionmenu = null;
-	//configuration
+	// configuration
 	boolean needsClear = false;
 	public static final int SPRITE_MEDIA_START = 2000;
 	public static final int SPRITE_UTIL_START = 2100;
@@ -74,195 +74,193 @@ public class mudclient extends GameWindowMiddleMan {
 	private int fps = 50;
 	private int cur_fps;
 	private long lastFps = 0L;
-	private String newQuestNames[] = { };
-	private final String questName[] = { 
-			"Cook's Assistant",
-			"Sheep Shearer",
-			"Black knight's fortress",
-			"Imp catcher",
-			"Vampire slayer",
-			"Romeo & Juliet",
-			"The restless ghost",
-			"Doric's quest",
-			"The knight's sword",
-			"Witch's potion",
-			"Goblin diplomacy",
-			"Ernest the chicken",
-			"Demon Slayer",
-			"Pirate's treasure",
-			"Prince Ali Rescue",
-			"Shield of Arrav",
-			"Dragon Slayer"
-	};//command == 233
-	private byte questStage[] = { };
+	private String newQuestNames[] = {};
+	private final String questName[] = { "Cook's Assistant", "Sheep Shearer",
+			"Black knight's fortress", "Imp catcher", "Vampire slayer",
+			"Romeo & Juliet", "The restless ghost", "Doric's quest",
+			"The knight's sword", "Witch's potion", "Goblin diplomacy",
+			"Ernest the chicken", "Demon Slayer", "Pirate's treasure",
+			"Prince Ali Rescue", "Shield of Arrav", "Dragon Slayer" };// command
+																		// ==
+																		// 233
+	private byte questStage[] = {};
 	private Menu questMenu;
 	public File dataFile = null;
 	private int questMenuHandle;
-	private int questPoints = 0;//camera error
+	private int questPoints = 0;// camera error
 	public static boolean showPackets = false;
 	static mudclient mc;
+
 	public static final void main(String[] args) throws Exception {// Duel with
 		mc = new mudclient();
 		mc.appletMode = false;
 		loadCachedFile("Loading.rscd");
-		mc.setLogo(Toolkit.getDefaultToolkit().getImage(Config.CONF_DIR + File.separator + "Loading.rscd"));
-		mc.createWindow(mc.windowWidth, mc.windowHeight + 15 - 8, "Angel Development", false);
+		mc.setLogo(Toolkit.getDefaultToolkit().getImage(
+				Config.CONF_DIR + File.separator + "Loading.rscd"));
+		mc.createWindow(mc.windowWidth, mc.windowHeight + 15 - 8,
+				"Angel Development", false);
 		mc.fog = false;
 		/**
 		 * Edit this part to have more messages Stand
 		 */
 		mc.messagesArray = new String[5];
 		mc.messagesTimeout = new int[mc.messagesArray.length];
-	
+
 	}
+
 	public static Resolutions reso = new Resolutions();
 	public static boolean LOOT_ENABLED = true;
 
 	private boolean handleCommand(String s) {
 		try {
-		int firstSpace = s.indexOf(" ");
-		String cmd = s;
-		String[] args = new String[0];
-		if (firstSpace != -1) {
-			cmd = s.substring(0, firstSpace).trim();
-			args = s.substring(firstSpace + 1).trim().split(" ");
-		}
-		if (cmd.equals("noloot")) {
-			if (!LOOT_ENABLED) {
-				displayMessage("Ground items have been enabled.", 3, 0);
-				LOOT_ENABLED = true;
-			} else {
-				displayMessage("Ground items have been visually disabled, to enable repeat this command.", 3, 0);
-				LOOT_ENABLED = false;
+			int firstSpace = s.indexOf(" ");
+			String cmd = s;
+			String[] args = new String[0];
+			if (firstSpace != -1) {
+				cmd = s.substring(0, firstSpace).trim();
+				args = s.substring(firstSpace + 1).trim().split(" ");
 			}
-		}
-		if (cmd.equals("offer")) {
-			int id, amount;
-			try {
-				id = Integer.parseInt(args[0]);
-				amount = Integer.parseInt(args[1]);
-				boolean done = false;
-				if (showTradeWindow) {
-					if (tradeMyItemCount >= 12) {
-						displayMessage(
-								"@cya@Your trade offer is currently full", 3, 0);
-						return true;
-					}
-					if (inventoryCount(id) < amount) {
-						displayMessage("@cya@You do not have that many "
-								+ EntityHandler.getItemDef(id).getName()
-								+ " to offer", 3, 0);
-						return true;
-					}
-					if (!EntityHandler.getItemDef(id).isStackable()
-							&& amount > 1) {
-						displayMessage(
-								"@cya@You can only offer 1 non stackable at a time",
-								3, 0);
-						return true;
-					}
-					for (int c = 0; c < tradeMyItemCount; c++) {
-						if (tradeMyItems[c] == id) {
-							if (EntityHandler.getItemDef(id).isStackable()) {
-								if (inventoryCount(id) < (tradeMyItemsCount[c] + amount)) {
-									displayMessage(
-											"@cya@You do not have that many"
-											+ EntityHandler.getItemDef(
-													id).getName()
-													+ " to offer", 3, 0);
-									return true;
-								}
-								tradeMyItemsCount[c] += amount;
-								done = true;
-							}
-							break;
-						}
-					}
-
-					if (!done) {
-						tradeMyItems[tradeMyItemCount] = id;
-						tradeMyItemsCount[tradeMyItemCount] = amount;
-						tradeMyItemCount++;
-					}
-
-					super.streamClass.createPacket(70);
-					super.streamClass.addByte(tradeMyItemCount);
-					for (int c = 0; c < tradeMyItemCount; c++) {
-						super.streamClass.add2ByteInt(tradeMyItems[c]);
-						super.streamClass.add4ByteInt(tradeMyItemsCount[c]);
-					}
-					super.streamClass.formatPacket();
-
-					tradeOtherAccepted = false;
-					tradeWeAccepted = false;
-				} else if (showDuelWindow) {
-					if (duelMyItemCount >= 12) {
-						displayMessage(
-								"@cya@Your duel offer is currently full", 3, 0);
-						return true;
-					}
-					if (inventoryCount(id) < amount) {
-						displayMessage("@cya@You do not have that many"
-								+ EntityHandler.getItemDef(id).getName()
-								+ " to offer", 3, 0);
-						return true;
-					}
-					if (!EntityHandler.getItemDef(id).isStackable()
-							&& amount > 1) {
-						displayMessage(
-								"@cya@You can only offer 1 non stackable at a time",
-								3, 0);
-						return true;
-					}
-
-					for (int c = 0; c < duelMyItemCount; c++) {
-						if (duelMyItems[c] == id) {
-							if (EntityHandler.getItemDef(id).isStackable()) {
-								if (inventoryCount(id) < (duelMyItemsCount[c] + amount)) {
-									displayMessage(
-											"@cya@You do not have that many"
-											+ EntityHandler.getItemDef(
-													id).getName()
-													+ " to offer", 3, 0);
-									return true;
-								}
-								duelMyItemsCount[c] += amount;
-								done = true;
-							}
-							break;
-						}
-					}
-
-					if (!done) {
-						duelMyItems[duelMyItemCount] = id;
-						duelMyItemsCount[duelMyItemCount] = amount;
-						duelMyItemCount++;
-					}
-
-					super.streamClass.createPacket(123);
-					super.streamClass.addByte(duelMyItemCount);
-					for (int c = 0; c < duelMyItemCount; c++) {
-						super.streamClass.add2ByteInt(duelMyItems[c]);
-						super.streamClass.add4ByteInt(duelMyItemsCount[c]);
-					}
-					super.streamClass.formatPacket();
-
-					duelOpponentAccepted = false;
-					duelMyAccepted = false;
+			if (cmd.equals("noloot")) {
+				if (!LOOT_ENABLED) {
+					displayMessage("Ground items have been enabled.", 3, 0);
+					LOOT_ENABLED = true;
 				} else {
 					displayMessage(
-							"@cya@You aren't in a trade/stake, there is nothing to offer to.",
+							"Ground items have been visually disabled, to enable repeat this command.",
 							3, 0);
+					LOOT_ENABLED = false;
 				}
-			} catch (Exception e) {
-				e.printStackTrace();
-				displayMessage("@cya@Invalid args!", 3, 0);
 			}
-			return true;
-		}
-		return false;
-		}
-		catch(Exception e) {
+			if (cmd.equals("offer")) {
+				int id, amount;
+				try {
+					id = Integer.parseInt(args[0]);
+					amount = Integer.parseInt(args[1]);
+					boolean done = false;
+					if (showTradeWindow) {
+						if (tradeMyItemCount >= 12) {
+							displayMessage(
+									"@cya@Your trade offer is currently full",
+									3, 0);
+							return true;
+						}
+						if (inventoryCount(id) < amount) {
+							displayMessage("@cya@You do not have that many "
+									+ EntityHandler.getItemDef(id).getName()
+									+ " to offer", 3, 0);
+							return true;
+						}
+						if (!EntityHandler.getItemDef(id).isStackable()
+								&& amount > 1) {
+							displayMessage(
+									"@cya@You can only offer 1 non stackable at a time",
+									3, 0);
+							return true;
+						}
+						for (int c = 0; c < tradeMyItemCount; c++) {
+							if (tradeMyItems[c] == id) {
+								if (EntityHandler.getItemDef(id).isStackable()) {
+									if (inventoryCount(id) < (tradeMyItemsCount[c] + amount)) {
+										displayMessage(
+												"@cya@You do not have that many"
+														+ EntityHandler
+																.getItemDef(id)
+																.getName()
+														+ " to offer", 3, 0);
+										return true;
+									}
+									tradeMyItemsCount[c] += amount;
+									done = true;
+								}
+								break;
+							}
+						}
+
+						if (!done) {
+							tradeMyItems[tradeMyItemCount] = id;
+							tradeMyItemsCount[tradeMyItemCount] = amount;
+							tradeMyItemCount++;
+						}
+
+						super.streamClass.createPacket(70);
+						super.streamClass.addByte(tradeMyItemCount);
+						for (int c = 0; c < tradeMyItemCount; c++) {
+							super.streamClass.add2ByteInt(tradeMyItems[c]);
+							super.streamClass.add4ByteInt(tradeMyItemsCount[c]);
+						}
+						super.streamClass.formatPacket();
+
+						tradeOtherAccepted = false;
+						tradeWeAccepted = false;
+					} else if (showDuelWindow) {
+						if (duelMyItemCount >= 12) {
+							displayMessage(
+									"@cya@Your duel offer is currently full",
+									3, 0);
+							return true;
+						}
+						if (inventoryCount(id) < amount) {
+							displayMessage("@cya@You do not have that many"
+									+ EntityHandler.getItemDef(id).getName()
+									+ " to offer", 3, 0);
+							return true;
+						}
+						if (!EntityHandler.getItemDef(id).isStackable()
+								&& amount > 1) {
+							displayMessage(
+									"@cya@You can only offer 1 non stackable at a time",
+									3, 0);
+							return true;
+						}
+
+						for (int c = 0; c < duelMyItemCount; c++) {
+							if (duelMyItems[c] == id) {
+								if (EntityHandler.getItemDef(id).isStackable()) {
+									if (inventoryCount(id) < (duelMyItemsCount[c] + amount)) {
+										displayMessage(
+												"@cya@You do not have that many"
+														+ EntityHandler
+																.getItemDef(id)
+																.getName()
+														+ " to offer", 3, 0);
+										return true;
+									}
+									duelMyItemsCount[c] += amount;
+									done = true;
+								}
+								break;
+							}
+						}
+
+						if (!done) {
+							duelMyItems[duelMyItemCount] = id;
+							duelMyItemsCount[duelMyItemCount] = amount;
+							duelMyItemCount++;
+						}
+
+						super.streamClass.createPacket(123);
+						super.streamClass.addByte(duelMyItemCount);
+						for (int c = 0; c < duelMyItemCount; c++) {
+							super.streamClass.add2ByteInt(duelMyItems[c]);
+							super.streamClass.add4ByteInt(duelMyItemsCount[c]);
+						}
+						super.streamClass.formatPacket();
+
+						duelOpponentAccepted = false;
+						duelMyAccepted = false;
+					} else {
+						displayMessage(
+								"@cya@You aren't in a trade/stake, there is nothing to offer to.",
+								3, 0);
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+					displayMessage("@cya@Invalid args!", 3, 0);
+				}
+				return true;
+			}
+			return false;
+		} catch (Exception e) {
 			System.err.println("CAUGHT HERE");
 			e.printStackTrace();
 			return false;
@@ -276,12 +274,11 @@ public class mudclient extends GameWindowMiddleMan {
 			int hours = (int) (minutes / 60);
 			int days = (int) (hours / 24);
 			return days + " days " + (hours % 24) + " hours " + (minutes % 60)
-			+ " mins";
-		}
-		catch(Exception e) {
+					+ " mins";
+		} catch (Exception e) {
 			return "";
 		}
-		
+
 	}
 
 	private BufferedImage getImage() throws IOException {
@@ -304,7 +301,7 @@ public class mudclient extends GameWindowMiddleMan {
 		file = null;
 		for (int suffix = 0; file == null || file.exists(); suffix++) {
 			file = movie ? new File(folder + "movie" + suffix + ".mov")
-			: new File(folder + "screenshot" + suffix + ".png");
+					: new File(folder + "screenshot" + suffix + ".png");
 		}
 		return file;
 	}
@@ -320,7 +317,7 @@ public class mudclient extends GameWindowMiddleMan {
 			return true;
 		} catch (IOException e) {
 			e.printStackTrace();
-		if (verbose) {
+			if (verbose) {
 				handleServerMessage("Error saving screenshot.");
 			}
 			return false;
@@ -330,6 +327,7 @@ public class mudclient extends GameWindowMiddleMan {
 	final void adjustPoints(int atk, int def, int str, int range) {
 		return;
 	}
+
 	final void method45(int i, int j, int k, int l, int i1, int j1, int k1) {
 		Mob mob = npcArray[i1];
 		int l1 = mob.currentSprite + (cameraRotation + 16) / 32 & 7;
@@ -346,27 +344,27 @@ public class mudclient extends GameWindowMiddleMan {
 			flag = true;
 		}
 		int j2 = i2
-		* 3
-		+ walkModel[(mob.stepCount / EntityHandler.getNpcDef(mob.type)
-				.getWalkModel()) % 4];
+				* 3
+				+ walkModel[(mob.stepCount / EntityHandler.getNpcDef(mob.type)
+						.getWalkModel()) % 4];
 		if (mob.currentSprite == 8) {
 			i2 = 5;
 			l1 = 2;
 			flag = false;
 			i -= (EntityHandler.getNpcDef(mob.type).getCombatSprite() * k1) / 100;
 			j2 = i2
-			* 3
-			+ npcCombatModelArray1[(loginTimer / (EntityHandler
-					.getNpcDef(mob.type).getCombatModel() - 1)) % 8];
+					* 3
+					+ npcCombatModelArray1[(loginTimer / (EntityHandler
+							.getNpcDef(mob.type).getCombatModel() - 1)) % 8];
 		} else if (mob.currentSprite == 9) {
 			i2 = 5;
 			l1 = 2;
 			flag = true;
 			i += (EntityHandler.getNpcDef(mob.type).getCombatSprite() * k1) / 100;
 			j2 = i2
-			* 3
-			+ npcCombatModelArray2[(loginTimer / EntityHandler
-					.getNpcDef(mob.type).getCombatModel()) % 8];
+					* 3
+					+ npcCombatModelArray2[(loginTimer / EntityHandler
+							.getNpcDef(mob.type).getCombatModel()) % 8];
 		}
 		for (int k2 = 0; k2 < 12; k2++) {
 			int l2 = npcAnimationArray[l1][k2];
@@ -381,35 +379,35 @@ public class mudclient extends GameWindowMiddleMan {
 				if (i2 != 5 || EntityHandler.getAnimationDef(k3).hasA()) {
 					int l4 = k4 + EntityHandler.getAnimationDef(k3).getNumber();
 					i4 = (i4 * k)
-					/ ((GameImage) (gameGraphics)).sprites[l4]
-					                                       .getSomething1();
+							/ ((GameImage) (gameGraphics)).sprites[l4]
+									.getSomething1();
 					j4 = (j4 * l)
-					/ ((GameImage) (gameGraphics)).sprites[l4]
-					                                       .getSomething2();
+							/ ((GameImage) (gameGraphics)).sprites[l4]
+									.getSomething2();
 					int i5 = (k * ((GameImage) (gameGraphics)).sprites[l4]
-					                                                   .getSomething1())
-					                                                   / ((GameImage) (gameGraphics)).sprites[EntityHandler
-					                                                                                          .getAnimationDef(k3).getNumber()]
-					                                                                                          .getSomething1();
+							.getSomething1())
+							/ ((GameImage) (gameGraphics)).sprites[EntityHandler
+									.getAnimationDef(k3).getNumber()]
+									.getSomething1();
 					i4 -= (i5 - k) / 2;
 					int colour = EntityHandler.getAnimationDef(k3)
-					.getCharColour();
+							.getCharColour();
 					int skinColour = 0;
 					if (colour == 1) {
 						colour = EntityHandler.getNpcDef(mob.type)
-						.getHairColour();
+								.getHairColour();
 						skinColour = EntityHandler.getNpcDef(mob.type)
-						.getSkinColour();
+								.getSkinColour();
 					} else if (colour == 2) {
 						colour = EntityHandler.getNpcDef(mob.type)
-						.getTopColour();
+								.getTopColour();
 						skinColour = EntityHandler.getNpcDef(mob.type)
-						.getSkinColour();
+								.getSkinColour();
 					} else if (colour == 3) {
 						colour = EntityHandler.getNpcDef(mob.type)
-						.getBottomColour();
+								.getBottomColour();
 						skinColour = EntityHandler.getNpcDef(mob.type)
-						.getSkinColour();
+								.getSkinColour();
 					}
 					gameGraphics.spriteClip4(i + i4, j + j4, i5, l, l4, colour,
 							skinColour, j1, flag);
@@ -457,177 +455,256 @@ public class mudclient extends GameWindowMiddleMan {
 	}
 
 	private float pkCombat(float at, float de, float st, float ra, float ma) {
-                       // Work out their combat level
-                        float hp = playerStatBase[3];
-                        float pr = playerStatBase[5];
-                        if (ra * 1.5 > st + at) { return (float)pkCombat2(at, de, st, ra, ma); }
-			float cmb = (st / 4) + (de / 4) + (hp / 4) + (at / 4)
-                                + (pr / 8) + (ma / 8); // formula for a combat based
-                                // character
-			return cmb;
+		// Work out their combat level
+		float hp = playerStatBase[3];
+		float pr = playerStatBase[5];
+		if (ra * 1.5 > st + at) {
+			return (float) pkCombat2(at, de, st, ra, ma);
+		}
+		float cmb = (st / 4) + (de / 4) + (hp / 4) + (at / 4) + (pr / 8)
+				+ (ma / 8); // formula for a combat based
+		// character
+		return cmb;
 	}
 
-        private double pkCombat2(float at, float de, float st, float ra, float ma) {
-                       // Work out their combat level
-                        float hp = playerStatBase[3];
-                        float pr = playerStatBase[5];
-                                double cmb = (de / 4) + (hp / 4) + (pr / 8) + (ma / 8)
-                                + (ra / 2.66); // forumla for a ranged based
-                                // character
-                                cmb = Math.round(cmb * 100.0) / 100.0;
-                        return cmb;
-        }
+	private double pkCombat2(float at, float de, float st, float ra, float ma) {
+		// Work out their combat level
+		float hp = playerStatBase[3];
+		float pr = playerStatBase[5];
+		double cmb = (de / 4) + (hp / 4) + (pr / 8) + (ma / 8) + (ra / 2.66); // forumla
+																				// for
+																				// a
+																				// ranged
+																				// based
+		// character
+		cmb = Math.round(cmb * 100.0) / 100.0;
+		return cmb;
+	}
 
 	private final void drawPointsScreen() {
-		drawPointsScreen.updateActions(super.mouseX, super.mouseY, super.lastMouseDownButton, super.mouseDownButton);
+		drawPointsScreen.updateActions(super.mouseX, super.mouseY,
+				super.lastMouseDownButton, super.mouseDownButton);
 		final Menu dPS = drawPointsScreen;
-		int i = 140+116;
-		int j = 34+135;
+		int i = 140 + 116;
+		int j = 34 + 135;
 		byte byte0 = 54;
-		if(pkreset) {
-			pkstrtext = dPS.drawText(i - byte0, j + 8, String.valueOf(pkstr), 1, true);	
-			pkatktext = dPS.drawText(i + byte0, j + 8, String.valueOf(pkatk), 1, true);	
-		        j += 50;
-			pkdeftext = dPS.drawText(i - byte0, j + 8, String.valueOf(pkdef), 1, true);	
-			pkrangetext = dPS.drawText(i + byte0, j + 8, String.valueOf(pkrange), 1, true);	
-		        j += 50;
-			pkmagictext = dPS.drawText(i - byte0, j + 8, String.valueOf(pkmagic), 1, true);	
-		        j += 50;
-                        // Work out their combat level
-                        float at = playerStatBase[0];
-                        float de = playerStatBase[1];
-                        float st = playerStatBase[2];
-                        float hp = playerStatBase[3];
-                        float ra = playerStatBase[4];
-                        float pr = playerStatBase[5];
-                        float ma = playerStatBase[6];
-                        if (ra * 1.5 > st + at) {
-                        	double cmb = (de / 4) + (hp / 4) + (pr / 8) + (ma / 8)
-                                + (ra / 2.66); // forumla for a ranged based
-                                // character
-                                pkcombattext = dPS.drawText(90, 50, "Combat level: "
-                                + (Math.round(cmb * 100.0) / 100.0)
-                                , 1, true);
-                        } else {
-                        	float cmb = (st / 4) + (de / 4) + (hp / 4) + (at / 4)
-                                + (pr / 8) + (ma / 8); // formula for a combat based
-                                // character
-                                pkcombattext = dPS.drawText(90, 50, "Combat level: " + cmb, 1, true);
-                        }
-                        j += 10;
-                        pkpointstext = dPS.drawText(90,  70, "Points: " + String.valueOf(pkpoints), 1, true);
+		if (pkreset) {
+			pkstrtext = dPS.drawText(i - byte0, j + 8, String.valueOf(pkstr),
+					1, true);
+			pkatktext = dPS.drawText(i + byte0, j + 8, String.valueOf(pkatk),
+					1, true);
+			j += 50;
+			pkdeftext = dPS.drawText(i - byte0, j + 8, String.valueOf(pkdef),
+					1, true);
+			pkrangetext = dPS.drawText(i + byte0, j + 8,
+					String.valueOf(pkrange), 1, true);
+			j += 50;
+			pkmagictext = dPS.drawText(i - byte0, j + 8,
+					String.valueOf(pkmagic), 1, true);
+			j += 50;
+			// Work out their combat level
+			float at = playerStatBase[0];
+			float de = playerStatBase[1];
+			float st = playerStatBase[2];
+			float hp = playerStatBase[3];
+			float ra = playerStatBase[4];
+			float pr = playerStatBase[5];
+			float ma = playerStatBase[6];
+			if (ra * 1.5 > st + at) {
+				double cmb = (de / 4) + (hp / 4) + (pr / 8) + (ma / 8)
+						+ (ra / 2.66); // forumla for a ranged based
+				// character
+				pkcombattext = dPS.drawText(90, 50,
+						"Combat level: " + (Math.round(cmb * 100.0) / 100.0),
+						1, true);
+			} else {
+				float cmb = (st / 4) + (de / 4) + (hp / 4) + (at / 4)
+						+ (pr / 8) + (ma / 8); // formula for a combat based
+				// character
+				pkcombattext = dPS.drawText(90, 50, "Combat level: " + cmb, 1,
+						true);
+			}
+			j += 10;
+			pkpointstext = dPS.drawText(90, 70,
+					"Points: " + String.valueOf(pkpoints), 1, true);
 			pkreset = false;
 		}
 		if (dPS.hasActivated(strDownButton)) {
-			if(pkstr == 1) { return; }
+			if (pkstr == 1) {
+				return;
+			}
 			pkstr--;
-		dPS.updateText(pkstrtext, String.valueOf(pkstr));	
+			dPS.updateText(pkstrtext, String.valueOf(pkstr));
 			pkpoints += pkexperienceArray[pkstr] - pkexperienceArray[pkstr - 1];
-			adjustPoints(pkatk,pkdef,pkstr,pkrange);
-		dPS.updateText(pkpointstext, "Points: " + String.valueOf(pkpoints));	
-                dPS.updateText(pkcombattext, "Combat level: " + String.valueOf(pkCombat(pkatk, pkdef, pkstr, pkrange, pkmagic)));
+			adjustPoints(pkatk, pkdef, pkstr, pkrange);
+			dPS.updateText(pkpointstext, "Points: " + String.valueOf(pkpoints));
+			dPS.updateText(
+					pkcombattext,
+					"Combat level: "
+							+ String.valueOf(pkCombat(pkatk, pkdef, pkstr,
+									pkrange, pkmagic)));
 		}
 		if (dPS.hasActivated(strUpButton)) {
-			if(pkstr == 99) { return; }
+			if (pkstr == 99) {
+				return;
+			}
 			pkstr++;
-		dPS.updateText(pkstrtext, String.valueOf(pkstr));	
-			pkpoints -= pkexperienceArray[pkstr - 1] - pkexperienceArray[pkstr - 2];
-			adjustPoints(pkatk,pkdef,pkstr,pkrange);
-		dPS.updateText(pkpointstext, "Points: " + String.valueOf(pkpoints));	
-                dPS.updateText(pkcombattext, "Combat level: " + String.valueOf(pkCombat(pkatk, pkdef, pkstr, pkrange, pkmagic)));
+			dPS.updateText(pkstrtext, String.valueOf(pkstr));
+			pkpoints -= pkexperienceArray[pkstr - 1]
+					- pkexperienceArray[pkstr - 2];
+			adjustPoints(pkatk, pkdef, pkstr, pkrange);
+			dPS.updateText(pkpointstext, "Points: " + String.valueOf(pkpoints));
+			dPS.updateText(
+					pkcombattext,
+					"Combat level: "
+							+ String.valueOf(pkCombat(pkatk, pkdef, pkstr,
+									pkrange, pkmagic)));
 		}
-		if(dPS.hasActivated(atkDownButton)) {
-			if(pkatk == 1) { return; }
+		if (dPS.hasActivated(atkDownButton)) {
+			if (pkatk == 1) {
+				return;
+			}
 			pkatk--;
-		dPS.updateText(pkatktext, String.valueOf(pkatk));	
+			dPS.updateText(pkatktext, String.valueOf(pkatk));
 			pkpoints += pkexperienceArray[pkatk] - pkexperienceArray[pkatk - 1];
-			adjustPoints(pkatk,pkdef,pkstr,pkrange);
-		dPS.updateText(pkpointstext, "Points: " + String.valueOf(pkpoints));	
-                dPS.updateText(pkcombattext, "Combat level: " + String.valueOf(pkCombat(pkatk, pkdef, pkstr, pkrange, pkmagic)));
+			adjustPoints(pkatk, pkdef, pkstr, pkrange);
+			dPS.updateText(pkpointstext, "Points: " + String.valueOf(pkpoints));
+			dPS.updateText(
+					pkcombattext,
+					"Combat level: "
+							+ String.valueOf(pkCombat(pkatk, pkdef, pkstr,
+									pkrange, pkmagic)));
 		}
-		if(dPS.hasActivated(atkUpButton)) {
-			if(pkatk == 99) { return; }
-                        pkatk++;
-		dPS.updateText(pkatktext, String.valueOf(pkatk));	
-			pkpoints -= pkexperienceArray[pkatk - 1] - pkexperienceArray[pkatk - 2];
-                        adjustPoints(pkatk,pkdef,pkstr,pkrange);
-		dPS.updateText(pkpointstext, "Points: " + String.valueOf(pkpoints));	
-                dPS.updateText(pkcombattext, "Combat level: " + String.valueOf(pkCombat(pkatk, pkdef, pkstr, pkrange, pkmagic)));
-                }
-		if(dPS.hasActivated(defDownButton)) {
-			if(pkdef == 1) { return; }
-                        pkdef--;
-		dPS.updateText(pkdeftext, String.valueOf(pkdef));	
+		if (dPS.hasActivated(atkUpButton)) {
+			if (pkatk == 99) {
+				return;
+			}
+			pkatk++;
+			dPS.updateText(pkatktext, String.valueOf(pkatk));
+			pkpoints -= pkexperienceArray[pkatk - 1]
+					- pkexperienceArray[pkatk - 2];
+			adjustPoints(pkatk, pkdef, pkstr, pkrange);
+			dPS.updateText(pkpointstext, "Points: " + String.valueOf(pkpoints));
+			dPS.updateText(
+					pkcombattext,
+					"Combat level: "
+							+ String.valueOf(pkCombat(pkatk, pkdef, pkstr,
+									pkrange, pkmagic)));
+		}
+		if (dPS.hasActivated(defDownButton)) {
+			if (pkdef == 1) {
+				return;
+			}
+			pkdef--;
+			dPS.updateText(pkdeftext, String.valueOf(pkdef));
 			pkpoints += pkexperienceArray[pkdef] - pkexperienceArray[pkdef - 1];
-                        adjustPoints(pkatk,pkdef,pkstr,pkrange);
-		dPS.updateText(pkpointstext, "Points: " + String.valueOf(pkpoints));	
-                dPS.updateText(pkcombattext, "Combat level: " + String.valueOf(pkCombat(pkatk, pkdef, pkstr, pkrange, pkmagic)));
-                }
-		if(dPS.hasActivated(defUpButton)) {
-			if(pkdef == 99) { return; }
-                        pkdef++;
-		dPS.updateText(pkdeftext, String.valueOf(pkdef));	
-			pkpoints -= pkexperienceArray[pkdef - 1] - pkexperienceArray[pkdef - 2];
-                        adjustPoints(pkatk,pkdef,pkstr,pkrange);
-		dPS.updateText(pkpointstext, "Points: " + String.valueOf(pkpoints));	
-                dPS.updateText(pkcombattext, "Combat level: " + String.valueOf(pkCombat(pkatk, pkdef, pkstr, pkrange, pkmagic)));
+			adjustPoints(pkatk, pkdef, pkstr, pkrange);
+			dPS.updateText(pkpointstext, "Points: " + String.valueOf(pkpoints));
+			dPS.updateText(
+					pkcombattext,
+					"Combat level: "
+							+ String.valueOf(pkCombat(pkatk, pkdef, pkstr,
+									pkrange, pkmagic)));
 		}
-		if(dPS.hasActivated(rangeDownButton)) {
-			if(pkrange == 1) { return; }
-                        pkrange--;
-		dPS.updateText(pkrangetext, String.valueOf(pkrange));	
-			pkpoints += pkexperienceArray[pkrange] - pkexperienceArray[pkrange - 1];
-                        adjustPoints(pkatk,pkdef,pkstr,pkrange);
-		dPS.updateText(pkpointstext, "Points: " + String.valueOf(pkpoints));	
-                dPS.updateText(pkcombattext, "Combat level: " + String.valueOf(pkCombat(pkatk, pkdef, pkstr, pkrange, pkmagic)));
-                }
-		if(dPS.hasActivated(rangeUpButton)) {
-			if(pkrange == 99) { return; }
-                        pkrange++;
-		dPS.updateText(pkrangetext, String.valueOf(pkrange));	
-			pkpoints -= pkexperienceArray[pkrange - 1] - pkexperienceArray[pkrange - 2];
-                        adjustPoints(pkatk,pkdef,pkstr,pkrange);
-		dPS.updateText(pkpointstext, "Points: " + String.valueOf(pkpoints));	
-                dPS.updateText(pkcombattext, "Combat level: " + String.valueOf(pkCombat(pkatk, pkdef, pkstr, pkrange, pkmagic)));
-                }
-                if(dPS.hasActivated(magDownButton)) {
-                        if(pkmagic == 1) { return; }
-                        pkmagic--;
-                dPS.updateText(pkmagictext, String.valueOf(pkmagic));
-                        pkpoints += pkexperienceArray[pkmagic] - pkexperienceArray[pkmagic - 1];
-                        adjustPoints(pkatk,pkdef,pkstr,pkmagic);
-                dPS.updateText(pkpointstext, "Points: " + String.valueOf(pkpoints));
-                dPS.updateText(pkcombattext, "Combat level: " + String.valueOf(pkCombat(pkatk, pkdef, pkstr, pkrange, pkmagic)));
-                }
-                if(dPS.hasActivated(magUpButton)) {
-                        if(pkmagic == 99) { return; }
-                        pkmagic++;
-                dPS.updateText(pkmagictext, String.valueOf(pkmagic));
-                        pkpoints -= pkexperienceArray[pkmagic - 1] - pkexperienceArray[pkmagic - 2];
-                        adjustPoints(pkatk,pkdef,pkstr,pkmagic);
-                dPS.updateText(pkpointstext, "Points: " + String.valueOf(pkpoints));
-                dPS.updateText(pkcombattext, "Combat level: " + String.valueOf(pkCombat(pkatk, pkdef, pkstr, pkrange, pkmagic)));
-                }
-		if(dPS.hasActivated(dPSAcceptButton)) {
-                       super.streamClass.createPacket(500);
-                        super.streamClass.addByte(pkatk);
-                        super.streamClass.addByte(pkdef);
-                        super.streamClass.addByte(pkstr);
-                        super.streamClass.addByte(pkrange);
-                        super.streamClass.formatPacket();
+		if (dPS.hasActivated(defUpButton)) {
+			if (pkdef == 99) {
+				return;
+			}
+			pkdef++;
+			dPS.updateText(pkdeftext, String.valueOf(pkdef));
+			pkpoints -= pkexperienceArray[pkdef - 1]
+					- pkexperienceArray[pkdef - 2];
+			adjustPoints(pkatk, pkdef, pkstr, pkrange);
+			dPS.updateText(pkpointstext, "Points: " + String.valueOf(pkpoints));
+			dPS.updateText(
+					pkcombattext,
+					"Combat level: "
+							+ String.valueOf(pkCombat(pkatk, pkdef, pkstr,
+									pkrange, pkmagic)));
+		}
+		if (dPS.hasActivated(rangeDownButton)) {
+			if (pkrange == 1) {
+				return;
+			}
+			pkrange--;
+			dPS.updateText(pkrangetext, String.valueOf(pkrange));
+			pkpoints += pkexperienceArray[pkrange]
+					- pkexperienceArray[pkrange - 1];
+			adjustPoints(pkatk, pkdef, pkstr, pkrange);
+			dPS.updateText(pkpointstext, "Points: " + String.valueOf(pkpoints));
+			dPS.updateText(
+					pkcombattext,
+					"Combat level: "
+							+ String.valueOf(pkCombat(pkatk, pkdef, pkstr,
+									pkrange, pkmagic)));
+		}
+		if (dPS.hasActivated(rangeUpButton)) {
+			if (pkrange == 99) {
+				return;
+			}
+			pkrange++;
+			dPS.updateText(pkrangetext, String.valueOf(pkrange));
+			pkpoints -= pkexperienceArray[pkrange - 1]
+					- pkexperienceArray[pkrange - 2];
+			adjustPoints(pkatk, pkdef, pkstr, pkrange);
+			dPS.updateText(pkpointstext, "Points: " + String.valueOf(pkpoints));
+			dPS.updateText(
+					pkcombattext,
+					"Combat level: "
+							+ String.valueOf(pkCombat(pkatk, pkdef, pkstr,
+									pkrange, pkmagic)));
+		}
+		if (dPS.hasActivated(magDownButton)) {
+			if (pkmagic == 1) {
+				return;
+			}
+			pkmagic--;
+			dPS.updateText(pkmagictext, String.valueOf(pkmagic));
+			pkpoints += pkexperienceArray[pkmagic]
+					- pkexperienceArray[pkmagic - 1];
+			adjustPoints(pkatk, pkdef, pkstr, pkmagic);
+			dPS.updateText(pkpointstext, "Points: " + String.valueOf(pkpoints));
+			dPS.updateText(
+					pkcombattext,
+					"Combat level: "
+							+ String.valueOf(pkCombat(pkatk, pkdef, pkstr,
+									pkrange, pkmagic)));
+		}
+		if (dPS.hasActivated(magUpButton)) {
+			if (pkmagic == 99) {
+				return;
+			}
+			pkmagic++;
+			dPS.updateText(pkmagictext, String.valueOf(pkmagic));
+			pkpoints -= pkexperienceArray[pkmagic - 1]
+					- pkexperienceArray[pkmagic - 2];
+			adjustPoints(pkatk, pkdef, pkstr, pkmagic);
+			dPS.updateText(pkpointstext, "Points: " + String.valueOf(pkpoints));
+			dPS.updateText(
+					pkcombattext,
+					"Combat level: "
+							+ String.valueOf(pkCombat(pkatk, pkdef, pkstr,
+									pkrange, pkmagic)));
+		}
+		if (dPS.hasActivated(dPSAcceptButton)) {
+			super.streamClass.createPacket(500);
+			super.streamClass.addByte(pkatk);
+			super.streamClass.addByte(pkdef);
+			super.streamClass.addByte(pkstr);
+			super.streamClass.addByte(pkrange);
+			super.streamClass.formatPacket();
 			gameGraphics.method211();
 			showDrawPointsScreen = false;
-                }
+		}
 	}
-				
+
 	private final void drawCharacterLookScreen() {
 		characterDesignMenu.updateActions(super.mouseX, super.mouseY,
 				super.lastMouseDownButton, super.mouseDownButton);
 		if (characterDesignMenu.hasActivated(characterDesignHeadButton1))
 			do
 				characterHeadType = ((characterHeadType - 1) + EntityHandler
-						.animationCount())
-						% EntityHandler.animationCount();
+						.animationCount()) % EntityHandler.animationCount();
 			while ((EntityHandler.getAnimationDef(characterHeadType)
 					.getGenderModel() & 3) != 1
 					|| (EntityHandler.getAnimationDef(characterHeadType)
@@ -635,53 +712,53 @@ public class mudclient extends GameWindowMiddleMan {
 		if (characterDesignMenu.hasActivated(characterDesignHeadButton2))
 			do
 				characterHeadType = (characterHeadType + 1)
-				% EntityHandler.animationCount();
+						% EntityHandler.animationCount();
 			while ((EntityHandler.getAnimationDef(characterHeadType)
 					.getGenderModel() & 3) != 1
 					|| (EntityHandler.getAnimationDef(characterHeadType)
 							.getGenderModel() & 4 * characterHeadGender) == 0);
 		if (characterDesignMenu.hasActivated(characterDesignHairColourButton1))
 			characterHairColour = ((characterHairColour - 1) + characterHairColours.length)
-			% characterHairColours.length;
+					% characterHairColours.length;
 		if (characterDesignMenu.hasActivated(characterDesignHairColourButton2))
 			characterHairColour = (characterHairColour + 1)
-			% characterHairColours.length;
+					% characterHairColours.length;
 		if (characterDesignMenu.hasActivated(characterDesignGenderButton1)
 				|| characterDesignMenu
-				.hasActivated(characterDesignGenderButton2)) {
+						.hasActivated(characterDesignGenderButton2)) {
 			for (characterHeadGender = 3 - characterHeadGender; (EntityHandler
 					.getAnimationDef(characterHeadType).getGenderModel() & 3) != 1
 					|| (EntityHandler.getAnimationDef(characterHeadType)
 							.getGenderModel() & 4 * characterHeadGender) == 0; characterHeadType = (characterHeadType + 1)
-							% EntityHandler.animationCount())
+					% EntityHandler.animationCount())
 				;
 			for (; (EntityHandler.getAnimationDef(characterBodyGender)
 					.getGenderModel() & 3) != 2
 					|| (EntityHandler.getAnimationDef(characterBodyGender)
 							.getGenderModel() & 4 * characterHeadGender) == 0; characterBodyGender = (characterBodyGender + 1)
-							% EntityHandler.animationCount())
+					% EntityHandler.animationCount())
 				;
 		}
 		if (characterDesignMenu.hasActivated(characterDesignTopColourButton1))
 			characterTopColour = ((characterTopColour - 1) + characterTopBottomColours.length)
-			% characterTopBottomColours.length;
+					% characterTopBottomColours.length;
 		if (characterDesignMenu.hasActivated(characterDesignTopColourButton2))
 			characterTopColour = (characterTopColour + 1)
-			% characterTopBottomColours.length;
+					% characterTopBottomColours.length;
 		if (characterDesignMenu.hasActivated(characterDesignSkinColourButton1))
 			characterSkinColour = ((characterSkinColour - 1) + characterSkinColours.length)
-			% characterSkinColours.length;
+					% characterSkinColours.length;
 		if (characterDesignMenu.hasActivated(characterDesignSkinColourButton2))
 			characterSkinColour = (characterSkinColour + 1)
-			% characterSkinColours.length;
+					% characterSkinColours.length;
 		if (characterDesignMenu
 				.hasActivated(characterDesignBottomColourButton1))
 			characterBottomColour = ((characterBottomColour - 1) + characterTopBottomColours.length)
-			% characterTopBottomColours.length;
+					% characterTopBottomColours.length;
 		if (characterDesignMenu
 				.hasActivated(characterDesignBottomColourButton2))
 			characterBottomColour = (characterBottomColour + 1)
-			% characterTopBottomColours.length;
+					% characterTopBottomColours.length;
 		if (characterDesignMenu.hasActivated(characterDesignAcceptButton)) {
 			super.streamClass.createPacket(218);
 			super.streamClass.addByte(characterHeadGender);
@@ -716,13 +793,14 @@ public class mudclient extends GameWindowMiddleMan {
 		if (super.socketTimeout > 0)
 			super.socketTimeout--;
 		if (loginScreenNumber == 0) {
-			menuWelcome.updateActions(super.mouseX, super.mouseY, super.lastMouseDownButton, super.mouseDownButton);
+			menuWelcome.updateActions(super.mouseX, super.mouseY,
+					super.lastMouseDownButton, super.mouseDownButton);
 			if (menuWelcome.hasActivated(loginButtonNewUser))
 				loginScreenNumber = 1;
 			if (menuWelcome.hasActivated(loginButtonExistingUser)) {
 				loginScreenNumber = 2;
 				menuLogin.updateText(loginStatusText,
-				"Please enter your username and password");
+						"Please enter your username and password");
 				menuLogin.updateText(loginUsernameTextBox, currentUser);
 				menuLogin.updateText(loginPasswordTextBox, currentPass);
 				menuLogin.setFocus(loginUsernameTextBox);
@@ -757,25 +835,29 @@ public class mudclient extends GameWindowMiddleMan {
 		gameGraphics.method211();
 		if (loginScreenNumber == 0 || loginScreenNumber == 1
 				|| loginScreenNumber == 2 || loginScreenNumber == 3) {
-			gameGraphics.drawPicture(3+xAddition, 0+yAddition, SPRITE_LOGO_START);
+			gameGraphics.drawPicture(3 + xAddition, 0 + yAddition,
+					SPRITE_LOGO_START);
 		}
-		//then register on forum
+		// then register on forum
 		if (loginScreenNumber == 0)
 			menuWelcome.drawMenu();
 		if (loginScreenNumber == 1)
 			menuNewUser.drawMenu();
 		if (loginScreenNumber == 2)
 			menuLogin.drawMenu();
-		gameGraphics.spriteClip4(0, windowHeight, windowWidth, 10, SPRITE_MEDIA_START + 22, 0, 0, 0, false);
+		gameGraphics.spriteClip4(0, windowHeight, windowWidth, 10,
+				SPRITE_MEDIA_START + 22, 0, 0, 0, false);
 		gameGraphics.drawImage(aGraphics936, 0, 0);
 	}
-	//abuse
+
+	// abuse
 	private final void drawAbuseWindow1() {
 		abuseSelectedType = 0;
 		int i = 135;
 		for (int j = 0; j < 8; j++) {
-			if (super.mouseX > 66+xAddition && super.mouseX < 446 +xAddition
-					&& super.mouseY >= i - 12+yAddition && super.mouseY < i + 3+yAddition)
+			if (super.mouseX > 66 + xAddition && super.mouseX < 446 + xAddition
+					&& super.mouseY >= i - 12 + yAddition
+					&& super.mouseY < i + 3 + yAddition)
 				abuseSelectedType = j + 1;
 			i += 14;
 		}
@@ -790,159 +872,154 @@ public class mudclient extends GameWindowMiddleMan {
 		i += 15;
 		if (mouseButtonClick != 0) {
 			mouseButtonClick = 0;
-			if (super.mouseX < 56+xAddition || super.mouseY < 35+yAddition || super.mouseX > 456+xAddition
-					|| super.mouseY > 325-50+yAddition) {
+			if (super.mouseX < 56 + xAddition || super.mouseY < 35 + yAddition
+					|| super.mouseX > 456 + xAddition
+					|| super.mouseY > 325 - 50 + yAddition) {
 				showAbuseWindow = 0;
 				return;
 			}
-			if (super.mouseX > 66+xAddition && super.mouseX < 446+xAddition
-					&& super.mouseY >= i - 15+yAddition && super.mouseY < i + 5+yAddition) {
+			if (super.mouseX > 66 + xAddition && super.mouseX < 446 + xAddition
+					&& super.mouseY >= i - 15 + yAddition
+					&& super.mouseY < i + 5 + yAddition) {
 				showAbuseWindow = 0;
 				return;
 			}
-			
+
 		}
-		gameGraphics.drawBox(56+xAddition, 35+yAddition, 400, 240, 0);
-		gameGraphics.drawBoxEdge(56+xAddition, 35+yAddition, 400, 240, 0xffffff);
-		i = 50+yAddition;
+		gameGraphics.drawBox(56 + xAddition, 35 + yAddition, 400, 240, 0);
+		gameGraphics.drawBoxEdge(56 + xAddition, 35 + yAddition, 400, 240,
+				0xffffff);
+		i = 50 + yAddition;
 		gameGraphics
-		.drawText(
-				"This form is for reporting players who are breaking our rules",
-				256+xAddition, i, 1, 0xffffff);
+				.drawText(
+						"This form is for reporting players who are breaking our rules",
+						256 + xAddition, i, 1, 0xffffff);
 		i += 15;
 		gameGraphics
-		.drawText(
-				"Using it sends a snapshot of the last 60 secs of activity to us",
-				256+xAddition, i, 1, 0xffffff);
+				.drawText(
+						"Using it sends a snapshot of the last 60 secs of activity to us",
+						256 + xAddition, i, 1, 0xffffff);
 		i += 15;
 		gameGraphics.drawText("If you misuse this form, you will be banned.",
-				256+xAddition, i, 1, 0xff8000);
+				256 + xAddition, i, 1, 0xff8000);
 		i += 15;
 		i += 10;
 		gameGraphics
-		.drawText(
-				"First indicate which of our 7 rules is being broken. For a detailed",
-				256+xAddition, i, 1, 0xffff00);
+				.drawText(
+						"First indicate which of our 7 rules is being broken. For a detailed",
+						256 + xAddition, i, 1, 0xffff00);
 		i += 15;
 		gameGraphics
-		.drawText(
-				"explanation of each rule please read the manual on our website.",
-				256+xAddition, i, 1, 0xffff00);
+				.drawText(
+						"explanation of each rule please read the manual on our website.",
+						256 + xAddition, i, 1, 0xffff00);
 		i += 15;
 		int k;
 		if (abuseSelectedType == 1) {
-			gameGraphics.drawBoxEdge(66+xAddition, i - 12, 380, 15, 0xffffff);
+			gameGraphics.drawBoxEdge(66 + xAddition, i - 12, 380, 15, 0xffffff);
 			k = 0xff8000;
 		} else {
 			k = 0xffffff;
 		}
-		gameGraphics.drawText("1: Extremly abusive behaviour", 256+xAddition, i, 1, k);
+		gameGraphics.drawText("1: Extremly abusive behaviour", 256 + xAddition,
+				i, 1, k);
 		i += 14;
 		if (abuseSelectedType == 2) {
-			gameGraphics.drawBoxEdge(66+xAddition, i - 12, 380, 15, 0xffffff);
+			gameGraphics.drawBoxEdge(66 + xAddition, i - 12, 380, 15, 0xffffff);
 			k = 0xff8000;
 		} else {
 			k = 0xffffff;
 		}
-		//gameGraphics.drawText("2: Item scamming", 256, i, 1, k);
-		//i += 14;
-		/*if (abuseSelectedType == 3) {
-			gameGraphics.drawBoxEdge(66, i - 12, 380, 15, 0xffffff);
-			k = 0xff8000;
-		} else {
-			k = 0xffffff;
-		}
-		gameGraphics.drawText("3: Password scamming", 256, i, 1, k);
-		*/
-		//i += 14;
-		
-		/* 
-		 if (abuseSelectedType == 4) {
-			gameGraphics.drawBoxEdge(66, i - 12, 380, 15, 0xffffff);
-			k = 0xff8000;
-		} else {
-			k = 0xffffff;
-		}
-		*/
-		gameGraphics.drawText("2: Bug abuse", 256+xAddition, i, 1, k);
+		// gameGraphics.drawText("2: Item scamming", 256, i, 1, k);
+		// i += 14;
+		/*
+		 * if (abuseSelectedType == 3) { gameGraphics.drawBoxEdge(66, i - 12,
+		 * 380, 15, 0xffffff); k = 0xff8000; } else { k = 0xffffff; }
+		 * gameGraphics.drawText("3: Password scamming", 256, i, 1, k);
+		 */
+		// i += 14;
+
+		/*
+		 * if (abuseSelectedType == 4) { gameGraphics.drawBoxEdge(66, i - 12,
+		 * 380, 15, 0xffffff); k = 0xff8000; } else { k = 0xffffff; }
+		 */
+		gameGraphics.drawText("2: Bug abuse", 256 + xAddition, i, 1, k);
 		i += 14;
 		if (abuseSelectedType == 3) {
-			gameGraphics.drawBoxEdge(66+xAddition, i - 12, 380, 15, 0xffffff);
+			gameGraphics.drawBoxEdge(66 + xAddition, i - 12, 380, 15, 0xffffff);
 			k = 0xff8000;
 		} else {
 			k = 0xffffff;
 		}
-		gameGraphics.drawText("3: RSCA Staff impersonation", 256+xAddition, i, 1, k);
+		gameGraphics.drawText("3: RSCA Staff impersonation", 256 + xAddition,
+				i, 1, k);
 		i += 14;
 		if (abuseSelectedType == 4) {
-			gameGraphics.drawBoxEdge(66+xAddition, i - 12, 380, 15, 0xffffff);
+			gameGraphics.drawBoxEdge(66 + xAddition, i - 12, 380, 15, 0xffffff);
 			k = 0xff8000;
 		} else {
 			k = 0xffffff;
 		}
-		
-		gameGraphics.drawText("4: Account trading/selling", 256+xAddition, i, 1, k);
-		i += 14;
-		if (abuseSelectedType == 5) {
-			gameGraphics.drawBoxEdge(66+xAddition, i - 12, 380, 15, 0xffffff);
-			k = 0xff8000;
-		} else {
-			k = 0xffffff;
-		}
-		gameGraphics.drawText("5: Macroing", 256+xAddition, i, 1, k);
-		i += 14;
-		if (abuseSelectedType == 6) {
-			gameGraphics.drawBoxEdge(66+xAddition, i - 12, 380, 15, 0xffffff);
-			k = 0xff8000;
-		} else {
-			k = 0xffffff;
-		}
-		//gameGraphics.drawText("8: Mutiple logging in", 256, i, 1, k);
-		//i += 14;
-		/*
-		if (abuseSelectedType == 9) {
-			gameGraphics.drawBoxEdge(66, i - 12, 380, 15, 0xffffff);
-			k = 0xff8000;
-		} else {
-			k = 0xffffff;
-		}*/
-		gameGraphics.drawText("6: Encouraging others to break rules", 256+xAddition, i,
+
+		gameGraphics.drawText("4: Account trading/selling", 256 + xAddition, i,
 				1, k);
 		i += 14;
-		if (abuseSelectedType == 7) {
-			gameGraphics.drawBoxEdge(66+xAddition, i - 12, 380, 15, 0xffffff);
+		if (abuseSelectedType == 5) {
+			gameGraphics.drawBoxEdge(66 + xAddition, i - 12, 380, 15, 0xffffff);
 			k = 0xff8000;
 		} else {
 			k = 0xffffff;
 		}
-		
-		//gameGraphics.drawText("10: Misuse of customer support", 256+xAddition, i, 1, k);
-		//i += 14;
+		gameGraphics.drawText("5: Macroing", 256 + xAddition, i, 1, k);
+		i += 14;
+		if (abuseSelectedType == 6) {
+			gameGraphics.drawBoxEdge(66 + xAddition, i - 12, 380, 15, 0xffffff);
+			k = 0xff8000;
+		} else {
+			k = 0xffffff;
+		}
+		// gameGraphics.drawText("8: Mutiple logging in", 256, i, 1, k);
+		// i += 14;
 		/*
-		if (abuseSelectedType == 11) {
-			gameGraphics.drawBoxEdge(66, i - 12, 380, 15, 0xffffff);
+		 * if (abuseSelectedType == 9) { gameGraphics.drawBoxEdge(66, i - 12,
+		 * 380, 15, 0xffffff); k = 0xff8000; } else { k = 0xffffff; }
+		 */
+		gameGraphics.drawText("6: Encouraging others to break rules",
+				256 + xAddition, i, 1, k);
+		i += 14;
+		if (abuseSelectedType == 7) {
+			gameGraphics.drawBoxEdge(66 + xAddition, i - 12, 380, 15, 0xffffff);
 			k = 0xff8000;
 		} else {
 			k = 0xffffff;
 		}
-		*/
-		gameGraphics.drawText("7: Advertising / website", 256+xAddition, i, 1, k);
+
+		// gameGraphics.drawText("10: Misuse of customer support",
+		// 256+xAddition, i, 1, k);
+		// i += 14;
+		/*
+		 * if (abuseSelectedType == 11) { gameGraphics.drawBoxEdge(66, i - 12,
+		 * 380, 15, 0xffffff); k = 0xff8000; } else { k = 0xffffff; }
+		 */
+		gameGraphics.drawText("7: Advertising / website", 256 + xAddition, i,
+				1, k);
 		i += 14;
 		if (abuseSelectedType == 8) {
-			gameGraphics.drawBoxEdge(66+xAddition, i - 12, 380, 15, 0xffffff);
+			gameGraphics.drawBoxEdge(66 + xAddition, i - 12, 380, 15, 0xffffff);
 			k = 0xff8000;
 		} else {
 			k = 0xffffff;
 		}
-		gameGraphics.drawText("8: Real world item trading", 256+xAddition, i, 1, k);
+		gameGraphics.drawText("8: Real world item trading", 256 + xAddition, i,
+				1, k);
 		i += 14;
 		i += 15;
 		k = 0xffffff;
-		if (super.mouseX > 196+xAddition && super.mouseX < 316+xAddition && super.mouseY > i - 15
-				&& super.mouseY < i + 5)
+		if (super.mouseX > 196 + xAddition && super.mouseX < 316 + xAddition
+				&& super.mouseY > i - 15 && super.mouseY < i + 5)
 			k = 0xffff00;
-		
-		gameGraphics.drawText("Click here to cancel", 256+xAddition, i, 1, k);
+
+		gameGraphics.drawText("Click here to cancel", 256 + xAddition, i, 1, k);
 	}
 
 	private final void autoRotateCamera() {
@@ -1051,19 +1128,19 @@ public class mudclient extends GameWindowMiddleMan {
 				if (i2 != 5 || EntityHandler.getAnimationDef(l3).hasA()) {
 					int k5 = j5 + EntityHandler.getAnimationDef(l3).getNumber();
 					k4 = (k4 * k)
-					/ ((GameImage) (gameGraphics)).sprites[k5]
-					                                       .getSomething1();
+							/ ((GameImage) (gameGraphics)).sprites[k5]
+									.getSomething1();
 					i5 = (i5 * l)
-					/ ((GameImage) (gameGraphics)).sprites[k5]
-					                                       .getSomething2();
+							/ ((GameImage) (gameGraphics)).sprites[k5]
+									.getSomething2();
 					int l5 = (k * ((GameImage) (gameGraphics)).sprites[k5]
-					                                                   .getSomething1())
-					                                                   / ((GameImage) (gameGraphics)).sprites[EntityHandler
-					                                                                                          .getAnimationDef(l3).getNumber()]
-					                                                                                          .getSomething1();
+							.getSomething1())
+							/ ((GameImage) (gameGraphics)).sprites[EntityHandler
+									.getAnimationDef(l3).getNumber()]
+									.getSomething1();
 					k4 -= (l5 - k) / 2;
 					int colour = EntityHandler.getAnimationDef(l3)
-					.getCharColour();
+							.getCharColour();
 					int skinColour = characterSkinColours[mob.colourSkinType];
 					if (colour == 1)
 						colour = characterHairColours[mob.colourHairType];
@@ -1146,7 +1223,7 @@ public class mudclient extends GameWindowMiddleMan {
 				"firea3", "fireplacea2", "fireplacea3", "firespell2",
 				"firespell3", "lightning2", "lightning3", "clawspell2",
 				"clawspell3", "clawspell4", "clawspell5", "spellcharge2",
-		"spellcharge3" };
+				"spellcharge3" };
 		for (String name : modelNames) {
 			EntityHandler.storeModel(name);
 		}
@@ -1165,7 +1242,7 @@ public class mudclient extends GameWindowMiddleMan {
 				gameDataModels[j] = new Model(models, k, true);
 			}
 			gameDataModels[j].isGiantCrystal = EntityHandler.getModelName(j)
-			.equals("giantcrystal");
+					.equals("giantcrystal");
 		}
 	}
 
@@ -1183,7 +1260,7 @@ public class mudclient extends GameWindowMiddleMan {
 					if (mouseClickXArray[l1] != x || mouseClickYArray[l1] != y)
 						flag = true;
 					if (mouseClickXArray[k1] != mouseClickXArray[l1]
-					                                             || mouseClickYArray[k1] != mouseClickYArray[l1])
+							|| mouseClickYArray[k1] != mouseClickYArray[l1])
 						break;
 					if (j1 == l - 1 && flag && lastWalkTimeout == 0
 							&& logoutTimeout == 0) {
@@ -1198,12 +1275,12 @@ public class mudclient extends GameWindowMiddleMan {
 	}
 
 	protected final void method4() {
-		if(smithingscreen == null) {
+		if (smithingscreen == null) {
 			smithingscreen = SmithingScreen.createScreen(mc);
 			OneonOne.createScreen(mc).isVisible = false;
-			
+
 		}
-		if(questionmenu == null) {
+		if (questionmenu == null) {
 			questionmenu = QuestionMenuScreen.createScreen(mc);
 			OneonOne.createScreen(mc).isVisible = false;
 		}
@@ -1222,13 +1299,11 @@ public class mudclient extends GameWindowMiddleMan {
 			i += 50;
 			g.setColor(Color.white);
 			g.setFont(new Font("Helvetica", 1, 12));
-			g
-			.drawString(
+			g.drawString(
 					"1: Try closing ALL open web-browser windows, and reloading",
 					30, i);
 			i += 30;
-			g
-			.drawString(
+			g.drawString(
 					"2: Try clearing your web-browsers cache from tools->internet options",
 					30, i);
 			i += 30;
@@ -1249,11 +1324,13 @@ public class mudclient extends GameWindowMiddleMan {
 			g2.drawString("Error - out of memory!", 50, 50);
 			g2.drawString("Close ALL unnecessary programs", 50, 100);
 			g2.drawString("and windows before loading the game", 50, 150);
-			g2.drawString("RSCA needs about 100mb of spare RAM, 300+mb to Record video", 50, 200);
+			g2.drawString(
+					"RSCA needs about 100mb of spare RAM, 300+mb to Record video",
+					50, 200);
 			changeThreadSleepModifier(1);
 			return;
 		}
-		
+
 		try {
 			if (loggedIn == 1) {
 				gameGraphics.drawStringShadows = true;
@@ -1265,7 +1342,7 @@ public class mudclient extends GameWindowMiddleMan {
 			} else {
 				gameGraphics.drawStringShadows = false;
 				drawLoginScreen();
-				
+
 			}
 		} catch (OutOfMemoryError e) {
 			e.printStackTrace();
@@ -1273,7 +1350,8 @@ public class mudclient extends GameWindowMiddleMan {
 			memoryError = true;
 		}
 	}
-	//drawGame
+
+	// drawGame
 	private final void walkToObject(int x, int y, int id, int type) {
 		int i1;
 		int j1;
@@ -1550,13 +1628,14 @@ public class mudclient extends GameWindowMiddleMan {
 				if (k7 < bankItemCount && bankItems[k7] != -1) {
 					gameGraphics.spriteClip4(l8, i9, 48, 32, SPRITE_ITEM_START
 							+ EntityHandler.getItemDef(bankItems[k7])
-							.getSprite(), EntityHandler.getItemDef(
-									bankItems[k7]).getPictureMask(), 0, 0, false);
+									.getSprite(),
+							EntityHandler.getItemDef(bankItems[k7])
+									.getPictureMask(), 0, 0, false);
 					gameGraphics.drawString(String.valueOf(bankItemsCount[k7]),
 							l8 + 1, i9 + 10, 1, 65280);
-					gameGraphics.drawBoxTextRight(String
-							.valueOf(inventoryCount(bankItems[k7])), l8 + 47,
-							i9 + 29, 1, 65535);
+					gameGraphics.drawBoxTextRight(
+							String.valueOf(inventoryCount(bankItems[k7])),
+							l8 + 47, i9 + 29, 1, 65535);
 				}
 				k7++;
 			}
@@ -1579,9 +1658,9 @@ public class mudclient extends GameWindowMiddleMan {
 			// if (!EntityHandler.getItemDef(k8).isStackable() && l7 > 1)
 			// l7 = 1;
 			if (l7 > 0) {
-				gameGraphics.drawString("Withdraw "
-						+ EntityHandler.getItemDef(k8).getName(), j + 2,
-						l + 248, 1, 0xffffff);
+				gameGraphics.drawString(
+						"Withdraw " + EntityHandler.getItemDef(k8).getName(),
+						j + 2, l + 248, 1, 0xffffff);
 				int l3 = 0xffffff;
 				if (super.mouseX >= j + 220 && super.mouseY >= l + 238
 						&& super.mouseX < j + 250 && super.mouseY <= l + 249)
@@ -1626,9 +1705,9 @@ public class mudclient extends GameWindowMiddleMan {
 				gameGraphics.drawString("All", j + 370, l + 248, 1, i5);
 			}
 			if (inventoryCount(k8) > 0) {
-				gameGraphics.drawString("Deposit "
-						+ EntityHandler.getItemDef(k8).getName(), j + 2,
-						l + 273, 1, 0xffffff);
+				gameGraphics.drawString(
+						"Deposit " + EntityHandler.getItemDef(k8).getName(),
+						j + 2, l + 273, 1, 0xffffff);
 				int j5 = 0xffffff;
 				if (super.mouseX >= j + 220 && super.mouseY >= l + 263
 						&& super.mouseX < j + 250 && super.mouseY <= l + 274)
@@ -1676,9 +1755,11 @@ public class mudclient extends GameWindowMiddleMan {
 	}
 
 	private final void drawLoggingOutBox() {
-		gameGraphics.drawBox(126+xAddition, 137+yAddition, 260, 60, 0);
-		gameGraphics.drawBoxEdge(126+xAddition, 137+yAddition, 260, 60, 0xffffff);
-		gameGraphics.drawText("Logging out...", 256+xAddition, 173+yAddition, 5, 0xffffff);
+		gameGraphics.drawBox(126 + xAddition, 137 + yAddition, 260, 60, 0);
+		gameGraphics.drawBoxEdge(126 + xAddition, 137 + yAddition, 260, 60,
+				0xffffff);
+		gameGraphics.drawText("Logging out...", 256 + xAddition,
+				173 + yAddition, 5, 0xffffff);
 	}
 
 	private final void drawInventoryMenu(boolean flag) {
@@ -1690,17 +1771,19 @@ public class mudclient extends GameWindowMiddleMan {
 			if (j < inventoryCount && wearing[j] == 1)
 				gameGraphics.drawBoxAlpha(k, i1, 49, 34, 0xff0000, 128);
 			else
-				gameGraphics.drawBoxAlpha(k, i1, 49, 34, GameImage
-						.convertRGBToLong(181, 181, 181), 128);
+				gameGraphics.drawBoxAlpha(k, i1, 49, 34,
+						GameImage.convertRGBToLong(181, 181, 181), 128);
 			if (j < inventoryCount) {
 				gameGraphics.spriteClip4(k, i1, 48, 32, SPRITE_ITEM_START
 						+ EntityHandler.getItemDef(getInventoryItems()[j])
-						.getSprite(), EntityHandler.getItemDef(
-								getInventoryItems()[j]).getPictureMask(), 0, 0, false);
-				if (EntityHandler.getItemDef(getInventoryItems()[j]).isStackable())
-					gameGraphics.drawString(String
-							.valueOf(inventoryItemsCount[j]), k + 1, i1 + 10,
-							1, 0xffff00);
+								.getSprite(),
+						EntityHandler.getItemDef(getInventoryItems()[j])
+								.getPictureMask(), 0, 0, false);
+				if (EntityHandler.getItemDef(getInventoryItems()[j])
+						.isStackable())
+					gameGraphics.drawString(
+							String.valueOf(inventoryItemsCount[j]), k + 1,
+							i1 + 10, 1, 0xffff00);
 			}
 		}
 
@@ -1713,7 +1796,7 @@ public class mudclient extends GameWindowMiddleMan {
 		if (!flag)
 			return;
 		i = super.mouseX
-		- (((GameImage) (gameGraphics)).menuDefaultWidth - 248);
+				- (((GameImage) (gameGraphics)).menuDefaultWidth - 248);
 		int k1 = super.mouseY - 36;
 		if (i >= 0 && k1 >= 0 && i < 248 && k1 < (anInt882 / 5) * 34) {
 			int currentInventorySlot = i / 49 + (k1 / 34) * 5;
@@ -1723,8 +1806,8 @@ public class mudclient extends GameWindowMiddleMan {
 				if (selectedSpell >= 0) {
 					if (EntityHandler.getSpellDef(selectedSpell).getSpellType() == 3) {
 						menuText1[menuLength] = "Cast "
-							+ EntityHandler.getSpellDef(selectedSpell)
-							.getName() + " on";
+								+ EntityHandler.getSpellDef(selectedSpell)
+										.getName() + " on";
 						menuText2[menuLength] = "@lre@" + itemDef.getName();
 						menuID[menuLength] = 600;
 						menuActionType[menuLength] = currentInventorySlot;
@@ -1732,10 +1815,10 @@ public class mudclient extends GameWindowMiddleMan {
 						menuLength++;
 						return;
 					}
-				} else {//::
+				} else {// ::
 					if (selectedItem >= 0) {
 						menuText1[menuLength] = "Use " + selectedItemName
-						+ " with";
+								+ " with";
 						menuText2[menuLength] = "@lre@" + itemDef.getName();
 						menuID[menuLength] = 610;
 						menuActionType[menuLength] = currentInventorySlot;
@@ -1775,8 +1858,8 @@ public class mudclient extends GameWindowMiddleMan {
 					menuLength++;
 					menuText1[menuLength] = "Examine";
 					menuText2[menuLength] = "@lre@"
-						+ itemDef.getName()
-						+ (ourPlayer.admin >= 1 ? " @or1@(" + i2 + ")" : "");
+							+ itemDef.getName()
+							+ (ourPlayer.admin >= 1 ? " @or1@(" + i2 + ")" : "");
 					menuID[menuLength] = 3600;
 					menuActionType[menuLength] = i2;
 					menuLength++;
@@ -1785,93 +1868,93 @@ public class mudclient extends GameWindowMiddleMan {
 		}
 	}
 
-	private final void drawChatMessageTabs() 
-	{
+	private final void drawChatMessageTabs() {
 		int x = xAddition;
-		
-		if(windowWidth > 512)
-		{
-			gameGraphics.spriteClip4(512, windowHeight, windowWidth - 512, 10, SPRITE_MEDIA_START + 22, 0, 0, 0, false);
-			gameGraphics.spriteClip4(0, windowHeight, windowWidth - 512, 10, SPRITE_MEDIA_START + 22, 0, 0, 0, false);
+
+		if (windowWidth > 512) {
+			gameGraphics.spriteClip4(512, windowHeight, windowWidth - 512, 10,
+					SPRITE_MEDIA_START + 22, 0, 0, 0, false);
+			gameGraphics.spriteClip4(0, windowHeight, windowWidth - 512, 10,
+					SPRITE_MEDIA_START + 22, 0, 0, 0, false);
 		}
-		
-		
-		gameGraphics.drawPicture(0+x, windowHeight - 4, SPRITE_MEDIA_START + 23);
-		
-		
+
+		gameGraphics.drawPicture(0 + x, windowHeight - 4,
+				SPRITE_MEDIA_START + 23);
+
 		int i = GameImage.convertRGBToLong(200, 200, 255);
 		if (messagesTab == 0)
 			i = GameImage.convertRGBToLong(255, 200, 50);
 		if (anInt952 % 30 > 15)
 			i = GameImage.convertRGBToLong(255, 50, 50);
-		gameGraphics.drawText("All messages", 54+x, windowHeight + 6, 0, i);
+		gameGraphics.drawText("All messages", 54 + x, windowHeight + 6, 0, i);
 		i = GameImage.convertRGBToLong(200, 200, 255);
 		if (messagesTab == 1)
 			i = GameImage.convertRGBToLong(255, 200, 50);
 		if (anInt953 % 30 > 15)
 			i = GameImage.convertRGBToLong(255, 50, 50);
-		gameGraphics.drawText("Chat history", 155+x, windowHeight + 6, 0, i);
+		gameGraphics.drawText("Chat history", 155 + x, windowHeight + 6, 0, i);
 		i = GameImage.convertRGBToLong(200, 200, 255);
 		if (messagesTab == 2)
 			i = GameImage.convertRGBToLong(255, 200, 50);
 		if (anInt954 % 30 > 15)
 			i = GameImage.convertRGBToLong(255, 50, 50);
-		gameGraphics.drawText("Quest history", 255+x, windowHeight + 6, 0, i);
+		gameGraphics.drawText("Quest history", 255 + x, windowHeight + 6, 0, i);
 		i = GameImage.convertRGBToLong(200, 200, 255);
 		if (messagesTab == 3)
 			i = GameImage.convertRGBToLong(255, 200, 50);
 		if (anInt955 % 30 > 15)
 			i = GameImage.convertRGBToLong(255, 50, 50);
-		gameGraphics.drawText("Private history", 355+x, windowHeight + 6, 0, i);
-		gameGraphics.drawText("Report abuse", 457+x, windowHeight + 6, 0,
+		gameGraphics.drawText("Private history", 355 + x, windowHeight + 6, 0,
+				i);
+		gameGraphics.drawText("Report abuse", 457 + x, windowHeight + 6, 0,
 				0xffffff);
 	}
 
-        private final void showDPS() {
-                gameGraphics.f1Toggle = false;
-                gameGraphics.method211();
-                drawPointsScreen.drawMenu();
-                int i = 140;
-                int j = 50;
-                i += 116;
-                j -= 25;
-                gameGraphics.spriteClip3(i - 32 - 55, j, 64, 102, EntityHandler
-                                .getAnimationDef(character2Colour).getNumber(),
-                                characterTopBottomColours[characterBottomColour]);
-                gameGraphics.spriteClip4(i - 32 - 55, j, 64, 102, EntityHandler
-                                .getAnimationDef(characterBodyGender).getNumber(),
-                                characterTopBottomColours[characterTopColour],
-                                characterSkinColours[characterSkinColour], 0, false);
-                gameGraphics.spriteClip4(i - 32 - 55, j, 64, 102, EntityHandler
-                                .getAnimationDef(characterHeadType).getNumber(),
-                                characterHairColours[characterHairColour],
-                                characterSkinColours[characterSkinColour], 0, false);
-                gameGraphics.spriteClip3(i - 32, j, 64, 102, EntityHandler
-                                .getAnimationDef(character2Colour).getNumber() + 6,
-                                characterTopBottomColours[characterBottomColour]);
-                gameGraphics.spriteClip4(i - 32, j, 64, 102, EntityHandler
-                                .getAnimationDef(characterBodyGender).getNumber() + 6,
-                                characterTopBottomColours[characterTopColour],
-                                characterSkinColours[characterSkinColour], 0, false);
-                gameGraphics.spriteClip4(i - 32, j, 64, 102, EntityHandler
-                                .getAnimationDef(characterHeadType).getNumber() + 6,
-                                characterHairColours[characterHairColour],
-                                characterSkinColours[characterSkinColour], 0, false);
-                gameGraphics.spriteClip3((i - 32) + 55, j, 64, 102, EntityHandler
-                                .getAnimationDef(character2Colour).getNumber() + 12,
-                                characterTopBottomColours[characterBottomColour]);
-                gameGraphics.spriteClip4((i - 32) + 55, j, 64, 102, EntityHandler
-                                .getAnimationDef(characterBodyGender).getNumber() + 12,
-                                characterTopBottomColours[characterTopColour],
-                                characterSkinColours[characterSkinColour], 0, false);
-                gameGraphics.spriteClip4((i - 32) + 55, j, 64, 102, EntityHandler
-                                .getAnimationDef(characterHeadType).getNumber() + 12,
-                                characterHairColours[characterHairColour],
-                                characterSkinColours[characterSkinColour], 0, false);
-                gameGraphics.spriteClip4(0, windowHeight, windowWidth, 10, SPRITE_MEDIA_START + 22, 0, 0, 0, false);
-                gameGraphics.drawImage(aGraphics936, 0, 0);
-        }
-
+	private final void showDPS() {
+		gameGraphics.f1Toggle = false;
+		gameGraphics.method211();
+		drawPointsScreen.drawMenu();
+		int i = 140;
+		int j = 50;
+		i += 116;
+		j -= 25;
+		gameGraphics.spriteClip3(i - 32 - 55, j, 64, 102, EntityHandler
+				.getAnimationDef(character2Colour).getNumber(),
+				characterTopBottomColours[characterBottomColour]);
+		gameGraphics.spriteClip4(i - 32 - 55, j, 64, 102, EntityHandler
+				.getAnimationDef(characterBodyGender).getNumber(),
+				characterTopBottomColours[characterTopColour],
+				characterSkinColours[characterSkinColour], 0, false);
+		gameGraphics.spriteClip4(i - 32 - 55, j, 64, 102, EntityHandler
+				.getAnimationDef(characterHeadType).getNumber(),
+				characterHairColours[characterHairColour],
+				characterSkinColours[characterSkinColour], 0, false);
+		gameGraphics.spriteClip3(i - 32, j, 64, 102, EntityHandler
+				.getAnimationDef(character2Colour).getNumber() + 6,
+				characterTopBottomColours[characterBottomColour]);
+		gameGraphics.spriteClip4(i - 32, j, 64, 102, EntityHandler
+				.getAnimationDef(characterBodyGender).getNumber() + 6,
+				characterTopBottomColours[characterTopColour],
+				characterSkinColours[characterSkinColour], 0, false);
+		gameGraphics.spriteClip4(i - 32, j, 64, 102, EntityHandler
+				.getAnimationDef(characterHeadType).getNumber() + 6,
+				characterHairColours[characterHairColour],
+				characterSkinColours[characterSkinColour], 0, false);
+		gameGraphics.spriteClip3((i - 32) + 55, j, 64, 102, EntityHandler
+				.getAnimationDef(character2Colour).getNumber() + 12,
+				characterTopBottomColours[characterBottomColour]);
+		gameGraphics.spriteClip4((i - 32) + 55, j, 64, 102, EntityHandler
+				.getAnimationDef(characterBodyGender).getNumber() + 12,
+				characterTopBottomColours[characterTopColour],
+				characterSkinColours[characterSkinColour], 0, false);
+		gameGraphics.spriteClip4((i - 32) + 55, j, 64, 102, EntityHandler
+				.getAnimationDef(characterHeadType).getNumber() + 12,
+				characterHairColours[characterHairColour],
+				characterSkinColours[characterSkinColour], 0, false);
+		gameGraphics.spriteClip4(0, windowHeight, windowWidth, 10,
+				SPRITE_MEDIA_START + 22, 0, 0, 0, false);
+		gameGraphics.drawImage(aGraphics936, 0, 0);
+	}
 
 	private final void method62() {
 		gameGraphics.f1Toggle = false;
@@ -1914,7 +1997,8 @@ public class mudclient extends GameWindowMiddleMan {
 				.getAnimationDef(characterHeadType).getNumber() + 12,
 				characterHairColours[characterHairColour],
 				characterSkinColours[characterSkinColour], 0, false);
-		gameGraphics.spriteClip4(0, windowHeight, windowWidth, 10, SPRITE_MEDIA_START + 22, 0, 0, 0, false);
+		gameGraphics.spriteClip4(0, windowHeight, windowWidth, 10,
+				SPRITE_MEDIA_START + 22, 0, 0, 0, false);
 		gameGraphics.drawImage(aGraphics936, 0, 0);
 	}
 
@@ -1960,12 +2044,14 @@ public class mudclient extends GameWindowMiddleMan {
 			i += 30;
 		if (subscriptionLeftDays > 0)
 			i += 15;
-		int j = 167 - i / 2+yAddition;
-		gameGraphics.drawBox(56+xAddition, 167 - i / 2+yAddition, 400, i, 0);
-		gameGraphics.drawBoxEdge(56+xAddition, 167 - i / 2+yAddition, 400, i, 0xffffff);
+		int j = 167 - i / 2 + yAddition;
+		gameGraphics
+				.drawBox(56 + xAddition, 167 - i / 2 + yAddition, 400, i, 0);
+		gameGraphics.drawBoxEdge(56 + xAddition, 167 - i / 2 + yAddition, 400,
+				i, 0xffffff);
 		j += 20;
-		gameGraphics.drawText("Welcome to RuneScape Classic " + currentUser, 256+xAddition, j, 4,
-				0xffff00);
+		gameGraphics.drawText("Welcome to RuneScape Classic " + currentUser,
+				256 + xAddition, j, 4, 0xffff00);
 		j += 30;
 		String s;
 		if (lastLoggedInDays == 0)
@@ -1975,27 +2061,29 @@ public class mudclient extends GameWindowMiddleMan {
 		else
 			s = lastLoggedInDays + " days ago";
 		if (!lastLoggedInAddress.equals("0.0.0.0")) {
-			gameGraphics.drawText("You last logged in " + s, 256+xAddition, j, 1,
-					0xffffff);
+			gameGraphics.drawText("You last logged in " + s, 256 + xAddition,
+					j, 1, 0xffffff);
 			j += 15;
-			gameGraphics.drawText("from: " + lastLoggedInAddress, 256+xAddition, j, 1,
-					0xffffff);
+			gameGraphics.drawText("from: " + lastLoggedInAddress,
+					256 + xAddition, j, 1, 0xffffff);
 			j += 15;
 		}
 		if (subscriptionLeftDays > 0) {
 			gameGraphics.drawText("Subscription Left: " + subscriptionLeftDays
-					+ " days", 256+xAddition, j, 1, 0xffffff);
+					+ " days", 256 + xAddition, j, 1, 0xffffff);
 			j += 15;
 		}
 		int l = 0xffffff;
-		if (super.mouseY > j - 12 && super.mouseY <= j && super.mouseX > 106+xAddition
-				&& super.mouseX < 406+xAddition)
+		if (super.mouseY > j - 12 && super.mouseY <= j
+				&& super.mouseX > 106 + xAddition
+				&& super.mouseX < 406 + xAddition)
 			l = 0xff0000;
-		gameGraphics.drawText("Click here to close window", 256+xAddition, j, 1, l);
+		gameGraphics.drawText("Click here to close window", 256 + xAddition, j,
+				1, l);
 		if (mouseButtonClick == 1) {
 			if (l == 0xff0000)
 				showWelcomeBox = false;
-			if ((super.mouseX < 86+xAddition || super.mouseX > 426+xAddition)
+			if ((super.mouseX < 86 + xAddition || super.mouseX > 426 + xAddition)
 					&& (super.mouseY < 167 - i / 2 || super.mouseY > 167 + i / 2))
 				showWelcomeBox = false;
 		}
@@ -2038,22 +2126,22 @@ public class mudclient extends GameWindowMiddleMan {
 		gameGraphics.drawBoxAlpha(i, j, c / 3, 24, k, 128);
 		gameGraphics.drawBoxAlpha(i + c / 3, j, c / 3, 24, l, 128);
 		gameGraphics.drawBoxAlpha(i + c / 3 + c / 3, j, c / 3, 24, s, 128);
-		gameGraphics.drawBoxAlpha(i, j + 24, c, c1 - 12, GameImage
-				.convertRGBToLong(220, 220, 220), 128);
+		gameGraphics.drawBoxAlpha(i, j + 24, c, c1 - 12,
+				GameImage.convertRGBToLong(220, 220, 220), 128);
 		gameGraphics.drawLineX(i, j + 24, c, 0);
 		gameGraphics.drawLineY(i + c / 3, j, 24, 0);
 		gameGraphics.drawLineY(i + c / 3 + c / 3, j, 24, 0);
 		gameGraphics.drawText(" Stats", i + c / 8 + 2, j + 16, 4, 0);
 		gameGraphics.drawText(" Quests", i + c / 8 + c / 3 + 4, j + 16, 4, 0);
-		gameGraphics.drawText(" Info", i + c / 8 + c / 3 + c / 3 + 2, j + 16, 4,
-				0);
+		gameGraphics.drawText(" Info", i + c / 8 + c / 3 + c / 3 + 2, j + 16,
+				4, 0);
 		if (anInt826 == 0) {
 			int i1 = 72;
 			int k1 = -1;
 			gameGraphics.drawString("Skills", i + 5, i1, 3, 0xffff00);
 			i1 += 13;
-			//gameGraphics.drawString("Fatigue: @yel@" + fatigue + "%",
-			//		(i + c / 2) - 5, i1 - 13, 1, 0xffffff);
+			// gameGraphics.drawString("Fatigue: @yel@" + fatigue + "%",
+			// (i + c / 2) - 5, i1 - 13, 1, 0xffffff);
 			for (int l1 = 0; l1 < 9; l1++) {
 				int i2 = 0xffffff;
 				if (super.mouseX > i + 3 && super.mouseY >= i1 - 11
@@ -2064,7 +2152,7 @@ public class mudclient extends GameWindowMiddleMan {
 				gameGraphics.drawString(skillArray[l1] + ":@yel@"
 						+ playerStatCurrent[l1] + "/" + playerStatBase[l1],
 						i + 5, i1, 1, i2);
-				if(l1 == 8) {
+				if (l1 == 8) {
 					gameGraphics.drawString("Fatigue: @yel@" + fatigue + "%",
 							i + 5, i1 + 13, 1, 0xffffff);
 				}
@@ -2076,11 +2164,13 @@ public class mudclient extends GameWindowMiddleMan {
 				}
 				gameGraphics.drawString(skillArray[l1 + 9] + ":@yel@"
 						+ playerStatCurrent[l1 + 9] + "/"
-						+ playerStatBase[l1 + 9], (i + c / 2) - 5, i1 -13, 1, i2);
+						+ playerStatBase[l1 + 9], (i + c / 2) - 5, i1 - 13, 1,
+						i2);
 				i1 += 13;
-				//Total xp:
-				if(l1 == 8) {
-					gameGraphics.drawString("Quest Points:@yel@" + questPoints, (i + c / 2) - 5, i1 -13, 1, 0xffffff);
+				// Total xp:
+				if (l1 == 8) {
+					gameGraphics.drawString("Quest Points:@yel@" + questPoints,
+							(i + c / 2) - 5, i1 - 13, 1, 0xffffff);
 					i1 += 13;
 				}
 			}
@@ -2091,10 +2181,10 @@ public class mudclient extends GameWindowMiddleMan {
 			for (int j2 = 0; j2 < 3; j2++) {
 				gameGraphics.drawString(equipmentStatusName[j2] + ":@yel@"
 						+ equipmentStatus[j2], i + 5, i1, 1, 0xffffff);
-				if(j2 < 2) {
-					gameGraphics.drawString(equipmentStatusName[j2 + 3] + ":@yel@"
-							+ equipmentStatus[j2 + 3], i + c / 2 + 25, i1, 1,
-							0xffffff);
+				if (j2 < 2) {
+					gameGraphics.drawString(equipmentStatusName[j2 + 3]
+							+ ":@yel@" + equipmentStatus[j2 + 3], i + c / 2
+							+ 25, i1, 1, 0xffffff);
 
 				}
 				i1 += 13;
@@ -2133,10 +2223,11 @@ public class mudclient extends GameWindowMiddleMan {
 				}
 				gameGraphics.drawString("Skill total: " + skillTotal, i + 5,
 						i1, 1, 0xffffff);
-				//i1 += 12;
-				//gameGraphics.drawString("Total xp: " + expTotal, i + 5, i1, 1,
-				//		0xffffff);
-				//Max hit
+				// i1 += 12;
+				// gameGraphics.drawString("Total xp: " + expTotal, i + 5, i1,
+				// 1,
+				// 0xffffff);
+				// Max hit
 				i1 += 12;
 				float at = playerStatBase[0];
 				float de = playerStatBase[1];
@@ -2147,42 +2238,39 @@ public class mudclient extends GameWindowMiddleMan {
 				float ma = playerStatBase[6];
 				if (ra * 1.5 > st + at) {
 					double cmb = (de / 4) + (hp / 4) + (pr / 8) + (ma / 8)
-					+ (ra / 2.66); // forumla for a ranged based
+							+ (ra / 2.66); // forumla for a ranged based
 					// character
-					gameGraphics.drawString("Combat level: "
-							+ (Math.round(cmb * 100.0) / 100.0)
-							, i + 5, i1, 1, 0xffffff);
+					gameGraphics.drawString(
+							"Combat level: "
+									+ (Math.round(cmb * 100.0) / 100.0), i + 5,
+							i1, 1, 0xffffff);
 				} else {
 					float cmb = (st / 4) + (de / 4) + (hp / 4) + (at / 4)
-					+ (pr / 8) + (ma / 8); // formula for a combat based
+							+ (pr / 8) + (ma / 8); // formula for a combat based
 					// character
-					gameGraphics.drawString("Combat level: " + cmb, i + 5, i1, 1, 0xffffff);
+					gameGraphics.drawString("Combat level: " + cmb, i + 5, i1,
+							1, 0xffffff);
 				}
 
 				i1 += 13;
-				/*double prayerBonus = 1.0;
-
-				if (prayerOn[1])
-					prayerBonus = 1.05;
-				else if (prayerOn[4])
-					prayerBonus = 1.1;
-				else if (prayerOn[10])
-					prayerBonus = 1.15;
-
-				int modeBonus = 0;
-
-				if (combatStyle == 0)
-					modeBonus = 1;
-				else if (combatStyle == 1)
-					modeBonus = 3;
-
-				double str = (playerStatCurrent[2] * prayerBonus) + modeBonus;
-				int maxHit = (int) ((str
-				 * ((((double) equipmentStatus[2] * 0.00175D) + 0.1D)) + 1.05D) * 0.95D);
-				if(maxHit > 31)
-					maxHit = 31;
-				gameGraphics.drawString("Max hit: " + maxHit, i + 5, i1, 1,
-						0xffffff);*/
+				/*
+				 * double prayerBonus = 1.0;
+				 * 
+				 * if (prayerOn[1]) prayerBonus = 1.05; else if (prayerOn[4])
+				 * prayerBonus = 1.1; else if (prayerOn[10]) prayerBonus = 1.15;
+				 * 
+				 * int modeBonus = 0;
+				 * 
+				 * if (combatStyle == 0) modeBonus = 1; else if (combatStyle ==
+				 * 1) modeBonus = 3;
+				 * 
+				 * double str = (playerStatCurrent[2] * prayerBonus) +
+				 * modeBonus; int maxHit = (int) ((str ((((double)
+				 * equipmentStatus[2] * 0.00175D) + 0.1D)) + 1.05D) * 0.95D);
+				 * if(maxHit > 31) maxHit = 31;
+				 * gameGraphics.drawString("Max hit: " + maxHit, i + 5, i1, 1,
+				 * 0xffffff);
+				 */
 			}
 		}
 		if (anInt826 == 1) {
@@ -2193,10 +2281,10 @@ public class mudclient extends GameWindowMiddleMan {
 
 			for (int questIdx = 0; questIdx < newQuestNames.length; questIdx++)
 				questMenu
-				.drawMenuListText(questMenuHandle, questIdx,
-						(questStage[questIdx] == 0 ? "@red@"
-								: questStage[questIdx] == 1 ? "@yel@"
-										: "@gre@")
+						.drawMenuListText(questMenuHandle, questIdx,
+								(questStage[questIdx] == 0 ? "@red@"
+										: questStage[questIdx] == 1 ? "@yel@"
+												: "@gre@")
 										+ newQuestNames[questIdx]);
 
 			questMenu.drawMenu();
@@ -2215,8 +2303,8 @@ public class mudclient extends GameWindowMiddleMan {
 			i1 += 13;
 			gameGraphics.drawString(
 					"Exp Gained:@yel@ "
-					+ (expGained > 1000 ? (expGained / 1000) + "k"
-							: expGained), i + 5, i1, 1, 0xffffff);
+							+ (expGained > 1000 ? (expGained / 1000) + "k"
+									: expGained), i + 5, i1, 1, 0xffffff);
 			if (!lastLoggedInAddress.equals("0.0.0.0")) {
 				i1 += 13;
 				gameGraphics.drawString("Last IP:@yel@ " + lastLoggedInAddress,
@@ -2242,7 +2330,7 @@ public class mudclient extends GameWindowMiddleMan {
 			double str = (playerStatCurrent[2] * prayerBonus) + modeBonus;
 			int maxHit = (int) ((str
 					* ((((double) equipmentStatus[2] * 0.00175D) + 0.1D)) + 1.05D) * 0.95D);
-			if(maxHit > 31)
+			if (maxHit > 31)
 				maxHit = 31;
 			gameGraphics.drawString("Max hit:@yel@ " + maxHit, i + 5, i1, 1,
 					0xffffff);
@@ -2281,16 +2369,16 @@ public class mudclient extends GameWindowMiddleMan {
 		}
 
 		i = super.mouseX
-		- (((GameImage) (gameGraphics)).menuDefaultWidth - 199);
+				- (((GameImage) (gameGraphics)).menuDefaultWidth - 199);
 		j = super.mouseY - 36;
 		if (i >= 0 && j >= 0 && i < c && j < c1) {
 			if (anInt826 == 1)
 				questMenu
-				.updateActions(
-						i
-						+ (((GameImage) (gameGraphics)).menuDefaultWidth - 199),
-						j + 36, super.lastMouseDownButton,
-						super.mouseDownButton);
+						.updateActions(
+								i
+										+ (((GameImage) (gameGraphics)).menuDefaultWidth - 199),
+								j + 36, super.lastMouseDownButton,
+								super.mouseDownButton);
 
 			if (j <= 24 && mouseButtonClick == 1) {
 				if (i < 65) {
@@ -2305,47 +2393,52 @@ public class mudclient extends GameWindowMiddleMan {
 	}
 
 	private final void drawWildernessWarningBox() {
-		int i = 97+yAddition;
-		gameGraphics.drawBox(86+xAddition, 77+yAddition, 340, 180, 0);
-		gameGraphics.drawBoxEdge(86+xAddition, 77+yAddition, 340, 180, 0xffffff);
-		gameGraphics.drawText("Warning! Proceed with caution", 256+xAddition, i, 4,
-				0xff0000);
+		int i = 97 + yAddition;
+		gameGraphics.drawBox(86 + xAddition, 77 + yAddition, 340, 180, 0);
+		gameGraphics.drawBoxEdge(86 + xAddition, 77 + yAddition, 340, 180,
+				0xffffff);
+		gameGraphics.drawText("Warning! Proceed with caution", 256 + xAddition,
+				i, 4, 0xff0000);
 		i += 26;
 		gameGraphics.drawText(
-				"If you go much further north you will enter the", 256+xAddition, i, 1,
-				0xffffff);
+				"If you go much further north you will enter the",
+				256 + xAddition, i, 1, 0xffffff);
 		i += 13;
 		gameGraphics.drawText("wilderness. This a very dangerous area where",
-				256+xAddition, i, 1, 0xffffff);
+				256 + xAddition, i, 1, 0xffffff);
 		i += 13;
-		gameGraphics.drawText("other players can attack you!", 256+xAddition, i, 1,
-				0xffffff);
+		gameGraphics.drawText("other players can attack you!", 256 + xAddition,
+				i, 1, 0xffffff);
 		i += 22;
 		gameGraphics.drawText("The further north you go the more dangerous it",
-				256+xAddition, i, 1, 0xffffff);
+				256 + xAddition, i, 1, 0xffffff);
 		i += 13;
 		gameGraphics.drawText("becomes, but the more treasure you will find.",
-				256+xAddition, i, 1, 0xffffff);
+				256 + xAddition, i, 1, 0xffffff);
 		i += 22;
 		gameGraphics.drawText(
-				"In the wilderness an indicator at the bottom-right", 256+xAddition, i,
-				1, 0xffffff);
+				"In the wilderness an indicator at the bottom-right",
+				256 + xAddition, i, 1, 0xffffff);
 		i += 13;
 		gameGraphics.drawText(
-				"of the screen will show the current level of danger", 256+xAddition, i,
-				1, 0xffffff);
+				"of the screen will show the current level of danger",
+				256 + xAddition, i, 1, 0xffffff);
 		i += 22;
 		int j = 0xffffff;
-		if (super.mouseY > i - 12 && super.mouseY <= i && super.mouseX > 181+xAddition
-				&& super.mouseX < 331+xAddition)
+		if (super.mouseY > i - 12 && super.mouseY <= i
+				&& super.mouseX > 181 + xAddition
+				&& super.mouseX < 331 + xAddition)
 			j = 0xff0000;
-		gameGraphics.drawText("Click here to close window", 256+xAddition, i, 1, j);
+		gameGraphics.drawText("Click here to close window", 256 + xAddition, i,
+				1, j);
 		if (mouseButtonClick != 0) {
 			if (super.mouseY > i - 12 && super.mouseY <= i
-					&& super.mouseX > 181+xAddition && super.mouseX < 331+xAddition)
+					&& super.mouseX > 181 + xAddition
+					&& super.mouseX < 331 + xAddition)
 				wildernessType = 2;
-			if (super.mouseX < 86+xAddition || super.mouseX > 426+xAddition || super.mouseY < 77+yAddition
-					|| super.mouseY > 257+yAddition)
+			if (super.mouseX < 86 + xAddition || super.mouseX > 426 + xAddition
+					|| super.mouseY < 77 + yAddition
+					|| super.mouseY > 257 + yAddition)
 				wildernessType = 2;
 			mouseButtonClick = 0;
 		}
@@ -2374,12 +2467,12 @@ public class mudclient extends GameWindowMiddleMan {
 	}
 
 	private final void checkMouseOverMenus() {
-//		if(mouseButtonClick == 1)
-//		{
-//			System.out.print("X coord - " + super.mouseX);
-//			System.out.println(" | Y coord - " + super.mouseY);
-//			System.out.println("---------------------------");
-//		}
+		// if(mouseButtonClick == 1)
+		// {
+		// System.out.print("X coord - " + super.mouseX);
+		// System.out.println(" | Y coord - " + super.mouseY);
+		// System.out.println("---------------------------");
+		// }
 		if (mouseOverMenu == 0
 				&& super.mouseX >= ((GameImage) (gameGraphics)).menuDefaultWidth - 35
 				&& super.mouseY >= 3
@@ -2477,8 +2570,9 @@ public class mudclient extends GameWindowMiddleMan {
 		if (mouseOverMenu == 6
 				&& (super.mouseX < ((GameImage) (gameGraphics)).menuDefaultWidth - 199 || super.mouseY > 311))
 			mouseOverMenu = 0;
-		
-		if (mouseOverMenu == 7 && (super.mouseX < ((GameImage) (gameGraphics)).menuDefaultWidth - 232 || super.mouseY > 214))
+
+		if (mouseOverMenu == 7
+				&& (super.mouseX < ((GameImage) (gameGraphics)).menuDefaultWidth - 232 || super.mouseY > 214))
 			mouseOverMenu = 0;
 	}
 
@@ -2490,7 +2584,8 @@ public class mudclient extends GameWindowMiddleMan {
 		int actionVariable2 = menuActionVariable2[index];
 		int currentMenuID = menuID[index];
 		if (currentMenuID == 200) {
-			walkToGroundItem(getSectionX(), getSectionY(), actionX, actionY, true);
+			walkToGroundItem(getSectionX(), getSectionY(), actionX, actionY,
+					true);
 			super.streamClass.createPacket(104);
 			super.streamClass.add2ByteInt(actionVariable);
 			super.streamClass.add2ByteInt(actionX + getAreaX());
@@ -2500,7 +2595,8 @@ public class mudclient extends GameWindowMiddleMan {
 			selectedSpell = -1;
 		}
 		if (currentMenuID == 210) {
-			walkToGroundItem(getSectionX(), getSectionY(), actionX, actionY, true);
+			walkToGroundItem(getSectionX(), getSectionY(), actionX, actionY,
+					true);
 			super.streamClass.createPacket(34);
 			super.streamClass.add2ByteInt(actionX + getAreaX());
 			super.streamClass.add2ByteInt(actionY + getAreaY());
@@ -2510,7 +2606,8 @@ public class mudclient extends GameWindowMiddleMan {
 			selectedItem = -1;
 		}
 		if (currentMenuID == 220) {
-			walkToGroundItem(getSectionX(), getSectionY(), actionX, actionY, true);
+			walkToGroundItem(getSectionX(), getSectionY(), actionX, actionY,
+					true);
 			super.streamClass.createPacket(245);
 			super.streamClass.add2ByteInt(actionX + getAreaX());
 			super.streamClass.add2ByteInt(actionY + getAreaY());
@@ -2586,9 +2683,18 @@ public class mudclient extends GameWindowMiddleMan {
 			super.streamClass.addTwo4ByteInts(System.currentTimeMillis());
 			super.streamClass.formatPacket();
 		}
-		try{throw new Exception();}
-		catch(Exception e){String caller = e.getStackTrace()[1].getClassName(); 
-		if(!caller.equalsIgnoreCase(this.getClass().getName()) && flagged == 0) { flagged = 1; streamClass.createPacket(165);streamClass.addByte(1);streamClass.formatPacket();}}
+		try {
+			throw new Exception();
+		} catch (Exception e) {
+			String caller = e.getStackTrace()[1].getClassName();
+			if (!caller.equalsIgnoreCase(this.getClass().getName())
+					&& flagged == 0) {
+				flagged = 1;
+				streamClass.createPacket(165);
+				streamClass.addByte(1);
+				streamClass.formatPacket();
+			}
+		}
 		if (currentMenuID == 2400) {
 			walkToObject(actionX, actionY, actionType, actionVariable);
 			super.streamClass.createPacket(40);
@@ -2641,9 +2747,11 @@ public class mudclient extends GameWindowMiddleMan {
 			super.streamClass.formatPacket();
 			selectedItem = -1;
 			mouseOverMenu = 0;
-			displayMessage("Dropping "
-					+ EntityHandler.getItemDef(getInventoryItems()[actionType])
-					.getName(), 4, 0);
+			displayMessage(
+					"Dropping "
+							+ EntityHandler.getItemDef(
+									getInventoryItems()[actionType]).getName(),
+					4, 0);
 		}
 		if (currentMenuID == 3600)
 			displayMessage(EntityHandler.getItemDef(actionType)
@@ -2789,7 +2897,7 @@ public class mudclient extends GameWindowMiddleMan {
 			if (loggedIn == 0) {
 				super.lastActionTimeout = 0;
 				updateLoginScreen();
-				
+
 			}
 			if (loggedIn == 1) {
 				super.lastActionTimeout++;
@@ -2855,16 +2963,18 @@ public class mudclient extends GameWindowMiddleMan {
 		modelY *= magicLoc;
 		modelX1 *= magicLoc;
 		modelX2 *= magicLoc;
-		int i3 = model.method179(modelX, -engineHandle.getAveragedElevation(
-				modelX, modelY), modelY);
-		int j3 = model.method179(modelX, -engineHandle.getAveragedElevation(
-				modelX, modelY)
-				- l2, modelY);
-		int k3 = model.method179(modelX1, -engineHandle.getAveragedElevation(
-				modelX1, modelX2)
-				- l2, modelX2);
-		int l3 = model.method179(modelX1, -engineHandle.getAveragedElevation(
-				modelX1, modelX2), modelX2);
+		int i3 = model.method179(modelX,
+				-engineHandle.getAveragedElevation(modelX, modelY), modelY);
+		int j3 = model
+				.method179(
+						modelX,
+						-engineHandle.getAveragedElevation(modelX, modelY) - l2,
+						modelY);
+		int k3 = model.method179(modelX1,
+				-engineHandle.getAveragedElevation(modelX1, modelX2) - l2,
+				modelX2);
+		int l3 = model.method179(modelX1,
+				-engineHandle.getAveragedElevation(modelX1, modelX2), modelX2);
 		int ai[] = { i3, j3, k3, l3 };
 		model.method181(4, ai, j2, k2);
 		model.method184(false, 60, 24, -50, -10, -50);
@@ -2893,7 +3003,7 @@ public class mudclient extends GameWindowMiddleMan {
 
 		if (s.length() > 8)
 			s = "@gre@" + s.substring(0, s.length() - 8) + " million @whi@("
-			+ s + ")";
+					+ s + ")";
 		else if (s.length() > 4)
 			s = "@cya@" + s.substring(0, s.length() - 4) + "K @whi@(" + s + ")";
 		return s;
@@ -2924,7 +3034,7 @@ public class mudclient extends GameWindowMiddleMan {
 	@SuppressWarnings("static-access")
 	private final void drawGame() throws Exception {
 		cur_fps++;
-		if(System.currentTimeMillis() - lastFps < 0) {
+		if (System.currentTimeMillis() - lastFps < 0) {
 			lastFps = System.currentTimeMillis();
 		}
 		if (System.currentTimeMillis() - lastFps >= 1000) {
@@ -2932,17 +3042,15 @@ public class mudclient extends GameWindowMiddleMan {
 			cur_fps = 0;
 			lastFps = System.currentTimeMillis();
 		}
-		
-		//sleepTime = (int) ((long) threadSleepModifier - (l1 - currentTimeArray[i]) / 10L);
-		/*long now = System.currentTimeMillis();
-		if (now - lastFrame > (1000 / Config.MOVIE_FPS) && recording) {
-			try {
-				lastFrame = now;
-				frames.add(getImage());
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		}*/
+
+		// sleepTime = (int) ((long) threadSleepModifier - (l1 -
+		// currentTimeArray[i]) / 10L);
+		/*
+		 * long now = System.currentTimeMillis(); if (now - lastFrame > (1000 /
+		 * Config.MOVIE_FPS) && recording) { try { lastFrame = now;
+		 * frames.add(getImage()); } catch (Exception e) { e.printStackTrace();
+		 * } }
+		 */
 		if (playerAliveTimeout != 0) {
 			gameGraphics.fadePixels();
 			gameGraphics.drawText("Oh dear! You are dead...", windowWidth / 2,
@@ -3004,13 +3112,13 @@ public class mudclient extends GameWindowMiddleMan {
 		if (showCharacterLookScreen) {
 			method62();
 			return;
-		}//fog
+		}// fog
 		if (!engineHandle.playerIsAlive) {
 			return;
 		}
 		for (int i = 0; i < 64; i++) {
 			gameCamera
-			.removeModel(engineHandle.aModelArrayArray598[lastWildYSubtract][i]);
+					.removeModel(engineHandle.aModelArrayArray598[lastWildYSubtract][i]);
 			if (lastWildYSubtract == 0) {
 				gameCamera.removeModel(engineHandle.aModelArrayArray580[1][i]);
 				gameCamera.removeModel(engineHandle.aModelArrayArray598[1][i]);
@@ -3022,16 +3130,16 @@ public class mudclient extends GameWindowMiddleMan {
 					&& (engineHandle.walkableValue[ourPlayer.currentX / 128][ourPlayer.currentY / 128] & 0x80) == 0) {
 				if (showRoof) {
 					gameCamera
-					.addModel(engineHandle.aModelArrayArray598[lastWildYSubtract][i]);
+							.addModel(engineHandle.aModelArrayArray598[lastWildYSubtract][i]);
 					if (lastWildYSubtract == 0) {
 						gameCamera
-						.addModel(engineHandle.aModelArrayArray580[1][i]);
+								.addModel(engineHandle.aModelArrayArray580[1][i]);
 						gameCamera
-						.addModel(engineHandle.aModelArrayArray598[1][i]);
+								.addModel(engineHandle.aModelArrayArray598[1][i]);
 						gameCamera
-						.addModel(engineHandle.aModelArrayArray580[2][i]);
+								.addModel(engineHandle.aModelArrayArray580[2][i]);
 						gameCamera
-						.addModel(engineHandle.aModelArrayArray598[2][i]);
+								.addModel(engineHandle.aModelArrayArray598[2][i]);
 					}
 				}
 				zoomCamera = false;
@@ -3110,8 +3218,8 @@ public class mudclient extends GameWindowMiddleMan {
 					int nx = npc.currentX;
 					int ny = npc.currentY;
 					int ni = -engineHandle.getAveragedElevation(nx, ny)
-					- EntityHandler.getNpcDef(npc.type).getCamera2()
-					/ 2;
+							- EntityHandler.getNpcDef(npc.type).getCamera2()
+							/ 2;
 					int i10 = (px * player.anInt176 + nx
 							* (attackingInt40 - player.anInt176))
 							/ attackingInt40;
@@ -3149,7 +3257,7 @@ public class mudclient extends GameWindowMiddleMan {
 				int k4 = groundItemY[j2] * magicLoc + 64;
 				gameCamera.method268(40000 + groundItemType[j2], j3,
 						-engineHandle.getAveragedElevation(j3, k4)
-						- groundItemObjectVar[j2], k4, 96, 64,
+								- groundItemObjectVar[j2], k4, 96, 64,
 						j2 + 20000);
 				fightCount++;
 			}
@@ -3160,15 +3268,15 @@ public class mudclient extends GameWindowMiddleMan {
 			int j7 = anIntArray757[k3] * magicLoc + 64;
 			int j9 = anIntArray782[k3];
 			if (j9 == 0) {
-				gameCamera
-				.method268(50000 + k3, l4, -engineHandle
-						.getAveragedElevation(l4, j7), j7, 128, 256,
-						k3 + 50000);
+				gameCamera.method268(50000 + k3, l4,
+						-engineHandle.getAveragedElevation(l4, j7), j7, 128,
+						256, k3 + 50000);
 				fightCount++;
 			}
 			if (j9 == 1) {
-				gameCamera.method268(50000 + k3, l4, -engineHandle
-						.getAveragedElevation(l4, j7), j7, 128, 64, k3 + 50000);
+				gameCamera.method268(50000 + k3, l4,
+						-engineHandle.getAveragedElevation(l4, j7), j7, 128,
+						64, k3 + 50000);
 				fightCount++;
 			}
 		}
@@ -3244,11 +3352,10 @@ public class mudclient extends GameWindowMiddleMan {
 
 		gameCamera.finishCamera();
 
-		/*e.printStackTrace();
-			System.out.println("Camera error: " + e);
-			cameraHeight = 750;
-			cameraVertical = 920;
-			fogVar = 0;*/
+		/*
+		 * e.printStackTrace(); System.out.println("Camera error: " + e);
+		 * cameraHeight = 750; cameraVertical = 920; fogVar = 0;
+		 */
 
 		method119();
 		if (actionPictureType > 0)
@@ -3263,32 +3370,33 @@ public class mudclient extends GameWindowMiddleMan {
 			int height = 55;
 			if (MessageQueue.getQueue().hasMessages()) {
 				for (Message m : MessageQueue.getQueue().getList()) {
-					if(m.isBIG)
+					if (m.isBIG)
 						continue;
 					gameGraphics.drawString(m.message, 8, height, 1, 0xffff00);
 					height += 12;
 				}
 				for (Message m : MessageQueue.getQueue().getList()) {
-					if(m.isBIG) {
-						gameGraphics.drawString(m.message, 120, 100, 7, 0xffff00);
+					if (m.isBIG) {
+						gameGraphics.drawString(m.message, 120, 100, 7,
+								0xffff00);
 					}
 				}
 			}
-		} catch(Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		if (systemUpdate != 0) {
 			int i6 = systemUpdate / 50;
 			int j8 = i6 / 60;
 			i6 %= 60;
-			if (i6 < 10)//redflag
+			if (i6 < 10)// redflag
 				gameGraphics.drawText("System update in: " + j8 + ":0" + i6,
-						256+xAddition, windowHeight - 7, 1, 0xffff00);
+						256 + xAddition, windowHeight - 7, 1, 0xffff00);
 			else
 				gameGraphics.drawText("System update in: " + j8 + ":" + i6,
-						256+xAddition, windowHeight - 7, 1, 0xffff00);
+						256 + xAddition, windowHeight - 7, 1, 0xffff00);
 		}
-		//#pmd#
+		// #pmd#
 		if (!notInWilderness) {
 			int j6 = 2203 - (getSectionY() + wildY + getAreaY());
 			if (getSectionX() + wildX + getAreaX() >= 2640)
@@ -3301,20 +3409,23 @@ public class mudclient extends GameWindowMiddleMan {
 				int maxx = 91;
 				int miny = 4;
 				int maxy = 33;
-				//command == 1
+				// command == 1
 				int ourX = (getSectionX() + getAreaX());
 				int ourY = (getSectionY() + getAreaY());
-				if(ourX > minx && ourX < maxx && ourY > miny && ourY < maxy) {
-					gameGraphics.drawText("@whi@CTF", windowWidth - 40, windowHeight - 20, 1,
-							0xffff00);
-					gameGraphics.drawText("@red@Red: @whi@" + GameWindowMiddleMan.redPoints + "  @blu@Blue: @whi@" + GameWindowMiddleMan.bluePoints, windowWidth - 40, windowHeight - 7, 1,
-							0xffff00);
+				if (ourX > minx && ourX < maxx && ourY > miny && ourY < maxy) {
+					gameGraphics.drawText("@whi@CTF", windowWidth - 40,
+							windowHeight - 20, 1, 0xffff00);
+					gameGraphics.drawText("@red@Red: @whi@"
+							+ GameWindowMiddleMan.redPoints
+							+ "  @blu@Blue: @whi@"
+							+ GameWindowMiddleMan.bluePoints, windowWidth - 40,
+							windowHeight - 7, 1, 0xffff00);
 				} else {
-					//Coords:
-					gameGraphics.drawText("Wilderness", windowWidth - 40, windowHeight - 20, 1,
-							0xffff00);
-					gameGraphics.drawText("Level: " + k8, windowWidth - 40, windowHeight - 7, 1,
-							0xffff00);
+					// Coords:
+					gameGraphics.drawText("Wilderness", windowWidth - 40,
+							windowHeight - 20, 1, 0xffff00);
+					gameGraphics.drawText("Level: " + k8, windowWidth - 40,
+							windowHeight - 7, 1, 0xffff00);
 				}
 				if (wildernessType == 0)
 					wildernessType = 2;
@@ -3353,15 +3464,19 @@ public class mudclient extends GameWindowMiddleMan {
 		InterfaceHandler.tick();
 		gameGraphics.drawImage(aGraphics936, 0, 0);
 	}
+
 	/**
 	 * Draws our sprites on screen when needed
 	 */
 	private void drawOurSpritesOnScreen() {
-		if(mouseOverMenu != 7)
-			gameGraphics.drawBoxAlpha(((GameImage) (gameGraphics)).menuDefaultWidth - 232, 3, 31, 32, GameImage.convertRGBToLong(181, 181, 181), 128);
-		
-		gameGraphics.drawPicture(windowWidth - 240, 2, SPRITE_ITEM_START + EntityHandler.getItemDef(167).getSprite());
-	
+		if (mouseOverMenu != 7)
+			gameGraphics.drawBoxAlpha(
+					((GameImage) (gameGraphics)).menuDefaultWidth - 232, 3, 31,
+					32, GameImage.convertRGBToLong(181, 181, 181), 128);
+
+		gameGraphics.drawPicture(windowWidth - 240, 2, SPRITE_ITEM_START
+				+ EntityHandler.getItemDef(167).getSprite());
+
 	}
 
 	private final void drawRightClickMenu() {
@@ -3410,7 +3525,7 @@ public class mudclient extends GameWindowMiddleMan {
 		loginScreenNumber = 0;
 		loggedIn = 0;
 		logoutTimeout = 0;
-		
+
 		for (int i = 0; i < questStage.length; i++)
 			questStage[i] = 0;
 		questPoints = 0;
@@ -3440,26 +3555,26 @@ public class mudclient extends GameWindowMiddleMan {
 					&& super.mouseY > j * 12 && super.mouseY < 12 + j * 12)
 				k = 0xff0000;
 			gameGraphics
-			.drawString(questionMenuAnswer[j], 6, 12 + j * 12, 1, k);
-			//KO9 breaking!
-			//questionmenu.Questions[j] = questionMenuAnswer[j];
+					.drawString(questionMenuAnswer[j], 6, 12 + j * 12, 1, k);
+			// KO9 breaking!
+			// questionmenu.Questions[j] = questionMenuAnswer[j];
 		}
-		//questionmenu.isVisible = true;
+		// questionmenu.isVisible = true;
 	}
 
 	private final void walkToAction(int actionX, int actionY, int actionType) {
 		if (actionType == 0) {
-			sendWalkCommand(getSectionX(), getSectionY(), actionX, actionY - 1, actionX,
-					actionY, false, true);
+			sendWalkCommand(getSectionX(), getSectionY(), actionX, actionY - 1,
+					actionX, actionY, false, true);
 			return;
 		}
 		if (actionType == 1) {
-			sendWalkCommand(getSectionX(), getSectionY(), actionX - 1, actionY, actionX,
-					actionY, false, true);
+			sendWalkCommand(getSectionX(), getSectionY(), actionX - 1, actionY,
+					actionX, actionY, false, true);
 			return;
 		} else {
-			sendWalkCommand(getSectionX(), getSectionY(), actionX, actionY, actionX,
-					actionY, true, true);
+			sendWalkCommand(getSectionX(), getSectionY(), actionX, actionY,
+					actionX, actionY, true, true);
 			return;
 		}
 	}
@@ -3498,12 +3613,12 @@ public class mudclient extends GameWindowMiddleMan {
 	}
 
 	protected final void loginScreenPrint(String s, String s1) {
-		
+
 		if (loginScreenNumber == 1)
 			menuNewUser.updateText(anInt900, s + " " + s1);
 		if (loginScreenNumber == 2)
 			menuLogin.updateText(loginStatusText, s + " " + s1);
-		
+
 		drawLoginScreen();
 		resetCurrentTimeArray();
 	}
@@ -3559,13 +3674,13 @@ public class mudclient extends GameWindowMiddleMan {
 							if (EntityHandler.getSpellDef(selectedSpell)
 									.getSpellType() == 1
 									|| EntityHandler.getSpellDef(selectedSpell)
-									.getSpellType() == 2) {
+											.getSpellType() == 2) {
 								menuText1[menuLength] = "Cast "
-									+ EntityHandler.getSpellDef(
-											selectedSpell).getName()
-											+ " on";
+										+ EntityHandler.getSpellDef(
+												selectedSpell).getName()
+										+ " on";
 								menuText2[menuLength] = "@whi@"
-									+ playerArray[i2].name + s;
+										+ playerArray[i2].name + s;
 								menuID[menuLength] = 800;
 								menuActionX[menuLength] = playerArray[i2].currentX;
 								menuActionY[menuLength] = playerArray[i2].currentY;
@@ -3575,9 +3690,9 @@ public class mudclient extends GameWindowMiddleMan {
 							}
 						} else if (selectedItem >= 0) {
 							menuText1[menuLength] = "Use " + selectedItemName
-							+ " with";
+									+ " with";
 							menuText2[menuLength] = "@whi@"
-								+ playerArray[i2].name + s;
+									+ playerArray[i2].name + s;
 							menuID[menuLength] = 810;
 							menuActionX[menuLength] = playerArray[i2].currentX;
 							menuActionY[menuLength] = playerArray[i2].currentY;
@@ -3585,13 +3700,19 @@ public class mudclient extends GameWindowMiddleMan {
 							menuActionVariable[menuLength] = selectedItem;
 							menuLength++;
 						} else {
-							//Max hit
+							// Max hit
 							if (i > 0
 									&& (playerArray[i2].currentY - 64)
-									/ magicLoc + wildY + getAreaY() < 2203) {
+											/ magicLoc + wildY + getAreaY() < 2203) {
 								menuText1[menuLength] = "Attack";
-								menuText2[menuLength] = (playerArray[i2].admin == 1 ? "#pmd#" : "") + (playerArray[i2].admin == 2 ? "#mod#" : "")  + (playerArray[i2].admin == 3 ? "#adm#" : "") + "@whi@"
-								+ playerArray[i2].name + s;
+								menuText2[menuLength] = (playerArray[i2].admin == 1 ? "#pmd#"
+										: "")
+										+ (playerArray[i2].admin == 2 ? "#mod#"
+												: "")
+										+ (playerArray[i2].admin == 3 ? "#adm#"
+												: "")
+										+ "@whi@"
+										+ playerArray[i2].name + s;
 								if (k3 >= 0 && k3 < 5)
 									menuID[menuLength] = 805;
 								else
@@ -3602,7 +3723,12 @@ public class mudclient extends GameWindowMiddleMan {
 								menuLength++;
 							} else {
 								menuText1[menuLength] = "Duel with";
-								menuText2[menuLength] = (playerArray[i2].admin == 1 ? "#pmd#" : "") + (playerArray[i2].admin == 2 ? "#mod#" : "") + "@whi@" + playerArray[i2].name + s;
+								menuText2[menuLength] = (playerArray[i2].admin == 1 ? "#pmd#"
+										: "")
+										+ (playerArray[i2].admin == 2 ? "#mod#"
+												: "")
+										+ "@whi@"
+										+ playerArray[i2].name + s;
 								menuActionX[menuLength] = playerArray[i2].currentX;
 								menuActionY[menuLength] = playerArray[i2].currentY;
 								menuID[menuLength] = 2806;
@@ -3611,30 +3737,42 @@ public class mudclient extends GameWindowMiddleMan {
 							}
 
 							menuText1[menuLength] = "Trade with";
-							menuText2[menuLength] = (playerArray[i2].admin == 1 ? "#pmd#" : "") + (playerArray[i2].admin == 2 ? "#mod#" : "")  + (playerArray[i2].admin == 3 ? "#adm#" : "") + "@whi@"
-							+ playerArray[i2].name + s;
+							menuText2[menuLength] = (playerArray[i2].admin == 1 ? "#pmd#"
+									: "")
+									+ (playerArray[i2].admin == 2 ? "#mod#"
+											: "")
+									+ (playerArray[i2].admin == 3 ? "#adm#"
+											: "")
+									+ "@whi@"
+									+ playerArray[i2].name + s;
 							menuID[menuLength] = 2810;
 							menuActionType[menuLength] = playerArray[i2].serverIndex;
 							menuLength++;
 							menuText1[menuLength] = "Follow";
-							menuText2[menuLength] = (playerArray[i2].admin == 1 ? "#pmd#" : "") + (playerArray[i2].admin == 2 ? "#mod#" : "")  + (playerArray[i2].admin == 3 ? "#adm#" : "") + "@whi@"
-							+ playerArray[i2].name + s;
+							menuText2[menuLength] = (playerArray[i2].admin == 1 ? "#pmd#"
+									: "")
+									+ (playerArray[i2].admin == 2 ? "#mod#"
+											: "")
+									+ (playerArray[i2].admin == 3 ? "#adm#"
+											: "")
+									+ "@whi@"
+									+ playerArray[i2].name + s;
 							menuID[menuLength] = 2820;
 							menuActionType[menuLength] = playerArray[i2].serverIndex;
 							menuLength++;
 						}
 					} else if (l2 == 2) {
 						ItemDef itemDef = EntityHandler
-						.getItemDef(groundItemType[i2]);
+								.getItemDef(groundItemType[i2]);
 						if (selectedSpell >= 0) {
 							if (EntityHandler.getSpellDef(selectedSpell)
 									.getSpellType() == 3) {
 								menuText1[menuLength] = "Cast "
-									+ EntityHandler.getSpellDef(
-											selectedSpell).getName()
-											+ " on";
+										+ EntityHandler.getSpellDef(
+												selectedSpell).getName()
+										+ " on";
 								menuText2[menuLength] = "@lre@"
-									+ itemDef.getName();
+										+ itemDef.getName();
 								menuID[menuLength] = 200;
 								menuActionX[menuLength] = groundItemX[i2];
 								menuActionY[menuLength] = groundItemY[i2];
@@ -3644,7 +3782,7 @@ public class mudclient extends GameWindowMiddleMan {
 							}
 						} else if (selectedItem >= 0) {
 							menuText1[menuLength] = "Use " + selectedItemName
-							+ " with";
+									+ " with";
 							menuText2[menuLength] = "@lre@" + itemDef.getName();
 							menuID[menuLength] = 210;
 							menuActionX[menuLength] = groundItemX[i2];
@@ -3662,12 +3800,13 @@ public class mudclient extends GameWindowMiddleMan {
 							menuLength++;
 							menuText1[menuLength] = "Examine";
 							menuText2[menuLength] = "@lre@"
-								+ itemDef.getName()
-								+ (ourPlayer.admin >= 1 ? " @or1@("
-										+ groundItemType[i2] + ":"
-										+ (groundItemX[i2] + getAreaX()) + ","
-										+ (groundItemY[i2] + getAreaY()) + ")"
-										: "");
+									+ itemDef.getName()
+									+ (ourPlayer.admin >= 1 ? " @or1@("
+											+ groundItemType[i2] + ":"
+											+ (groundItemX[i2] + getAreaX())
+											+ ","
+											+ (groundItemY[i2] + getAreaY())
+											+ ")" : "");
 							menuID[menuLength] = 3200;
 							menuActionType[menuLength] = groundItemType[i2];
 							menuLength++;
@@ -3676,12 +3815,12 @@ public class mudclient extends GameWindowMiddleMan {
 						String s1 = "";
 						int l3 = -1;
 						NPCDef npcDef = EntityHandler
-						.getNpcDef(npcArray[i2].type);
+								.getNpcDef(npcArray[i2].type);
 						if (npcDef.isAttackable()) {
 							int j4 = (npcDef.getAtt() + npcDef.getDef()
 									+ npcDef.getStr() + npcDef.getHits()) / 4;
 							int k4 = (playerStatBase[0] + playerStatBase[1]
-							                                             + playerStatBase[2] + playerStatBase[3] + 27) / 4;
+									+ playerStatBase[2] + playerStatBase[3] + 27) / 4;
 							l3 = k4 - j4;
 							s1 = "@yel@";
 							if (l3 < 0)
@@ -3706,11 +3845,11 @@ public class mudclient extends GameWindowMiddleMan {
 							if (EntityHandler.getSpellDef(selectedSpell)
 									.getSpellType() == 2) {
 								menuText1[menuLength] = "Cast "
-									+ EntityHandler.getSpellDef(
-											selectedSpell).getName()
-											+ " on";
+										+ EntityHandler.getSpellDef(
+												selectedSpell).getName()
+										+ " on";
 								menuText2[menuLength] = "@yel@"
-									+ npcDef.getName();
+										+ npcDef.getName();
 								menuID[menuLength] = 700;
 								menuActionX[menuLength] = npcArray[i2].currentX;
 								menuActionY[menuLength] = npcArray[i2].currentY;
@@ -3720,7 +3859,7 @@ public class mudclient extends GameWindowMiddleMan {
 							}
 						} else if (selectedItem >= 0) {
 							menuText1[menuLength] = "Use " + selectedItemName
-							+ " with";
+									+ " with";
 							menuText2[menuLength] = "@yel@" + npcDef.getName();
 							menuID[menuLength] = 710;
 							menuActionX[menuLength] = npcArray[i2].currentX;
@@ -3732,7 +3871,7 @@ public class mudclient extends GameWindowMiddleMan {
 							if (npcDef.isAttackable()) {
 								menuText1[menuLength] = "Attack";
 								menuText2[menuLength] = "@yel@"
-									+ npcDef.getName() + s1;
+										+ npcDef.getName() + s1;
 								if (l3 >= 0)
 									menuID[menuLength] = 715;
 								else
@@ -3752,7 +3891,7 @@ public class mudclient extends GameWindowMiddleMan {
 							if (!npcDef.getCommand().equals("")) {
 								menuText1[menuLength] = npcDef.getCommand();
 								menuText2[menuLength] = "@yel@"
-									+ npcDef.getName();
+										+ npcDef.getName();
 								menuID[menuLength] = 725;
 								menuActionX[menuLength] = npcArray[i2].currentX;
 								menuActionY[menuLength] = npcArray[i2].currentY;
@@ -3761,14 +3900,14 @@ public class mudclient extends GameWindowMiddleMan {
 							}
 							menuText1[menuLength] = "Examine";
 							menuText2[menuLength] = "@yel@"
-								+ npcDef.getName()
-								+ (ourPlayer.admin >= 1 ? " @or1@("
-										+ npcArray[i2].type + ")" : "");
+									+ npcDef.getName()
+									+ (ourPlayer.admin >= 1 ? " @or1@("
+											+ npcArray[i2].type + ")" : "");
 							menuID[menuLength] = 3700;
 							menuActionType[menuLength] = npcArray[i2].type;
 							menuLength++;
 						}
-					}//"Skills
+					}// "Skills
 				} else if (model != null && model.anInt257 >= 10000) {
 					int j2 = model.anInt257 - 10000;
 					int i3 = doorType[j2];
@@ -3777,12 +3916,12 @@ public class mudclient extends GameWindowMiddleMan {
 							if (EntityHandler.getSpellDef(selectedSpell)
 									.getSpellType() == 4) {
 								menuText1[menuLength] = "Cast "
-									+ EntityHandler.getSpellDef(
-											selectedSpell).getName()
-											+ " on";
+										+ EntityHandler.getSpellDef(
+												selectedSpell).getName()
+										+ " on";
 								menuText2[menuLength] = "@cya@"
-									+ EntityHandler.getDoorDef(i3)
-									.getName();
+										+ EntityHandler.getDoorDef(i3)
+												.getName();
 								menuID[menuLength] = 300;
 								menuActionX[menuLength] = doorX[j2];
 								menuActionY[menuLength] = doorY[j2];
@@ -3792,9 +3931,9 @@ public class mudclient extends GameWindowMiddleMan {
 							}
 						} else if (selectedItem >= 0) {
 							menuText1[menuLength] = "Use " + selectedItemName
-							+ " with";
+									+ " with";
 							menuText2[menuLength] = "@cya@"
-								+ EntityHandler.getDoorDef(i3).getName();
+									+ EntityHandler.getDoorDef(i3).getName();
 							menuID[menuLength] = 310;
 							menuActionX[menuLength] = doorX[j2];
 							menuActionY[menuLength] = doorY[j2];
@@ -3805,10 +3944,10 @@ public class mudclient extends GameWindowMiddleMan {
 							if (!EntityHandler.getDoorDef(i3).getCommand1()
 									.equalsIgnoreCase("WalkTo")) {
 								menuText1[menuLength] = EntityHandler
-								.getDoorDef(i3).getCommand1();
+										.getDoorDef(i3).getCommand1();
 								menuText2[menuLength] = "@cya@"
-									+ EntityHandler.getDoorDef(i3)
-									.getName();
+										+ EntityHandler.getDoorDef(i3)
+												.getName();
 								menuID[menuLength] = 320;
 								menuActionX[menuLength] = doorX[j2];
 								menuActionY[menuLength] = doorY[j2];
@@ -3818,10 +3957,10 @@ public class mudclient extends GameWindowMiddleMan {
 							if (!EntityHandler.getDoorDef(i3).getCommand2()
 									.equalsIgnoreCase("Examine")) {
 								menuText1[menuLength] = EntityHandler
-								.getDoorDef(i3).getCommand2();
+										.getDoorDef(i3).getCommand2();
 								menuText2[menuLength] = "@cya@"
-									+ EntityHandler.getDoorDef(i3)
-									.getName();
+										+ EntityHandler.getDoorDef(i3)
+												.getName();
 								menuID[menuLength] = 2300;
 								menuActionX[menuLength] = doorX[j2];
 								menuActionY[menuLength] = doorY[j2];
@@ -3830,10 +3969,11 @@ public class mudclient extends GameWindowMiddleMan {
 							}
 							menuText1[menuLength] = "Examine";
 							menuText2[menuLength] = "@cya@"
-								+ EntityHandler.getDoorDef(i3).getName()
-								+ (ourPlayer.admin >= 1 ? " @or1@(" + i3
-										+ ":" + (doorX[j2] + getAreaX()) + ","
-										+ (doorY[j2] + getAreaY()) + ")" : "");
+									+ EntityHandler.getDoorDef(i3).getName()
+									+ (ourPlayer.admin >= 1 ? " @or1@(" + i3
+											+ ":" + (doorX[j2] + getAreaX())
+											+ "," + (doorY[j2] + getAreaY())
+											+ ")" : "");
 							menuID[menuLength] = 3300;
 							menuActionType[menuLength] = i3;
 							menuLength++;
@@ -3848,12 +3988,12 @@ public class mudclient extends GameWindowMiddleMan {
 							if (EntityHandler.getSpellDef(selectedSpell)
 									.getSpellType() == 5) {
 								menuText1[menuLength] = "Cast "
-									+ EntityHandler.getSpellDef(
-											selectedSpell).getName()
-											+ " on";
+										+ EntityHandler.getSpellDef(
+												selectedSpell).getName()
+										+ " on";
 								menuText2[menuLength] = "@cya@"
-									+ EntityHandler.getObjectDef(j3)
-									.getName();
+										+ EntityHandler.getObjectDef(j3)
+												.getName();
 								menuID[menuLength] = 400;
 								menuActionX[menuLength] = objectX[k2];
 								menuActionY[menuLength] = objectY[k2];
@@ -3864,9 +4004,9 @@ public class mudclient extends GameWindowMiddleMan {
 							}
 						} else if (selectedItem >= 0) {
 							menuText1[menuLength] = "Use " + selectedItemName
-							+ " with";
+									+ " with";
 							menuText2[menuLength] = "@cya@"
-								+ EntityHandler.getObjectDef(j3).getName();
+									+ EntityHandler.getObjectDef(j3).getName();
 							menuID[menuLength] = 410;
 							menuActionX[menuLength] = objectX[k2];
 							menuActionY[menuLength] = objectY[k2];
@@ -3878,10 +4018,10 @@ public class mudclient extends GameWindowMiddleMan {
 							if (!EntityHandler.getObjectDef(j3).getCommand1()
 									.equalsIgnoreCase("WalkTo")) {
 								menuText1[menuLength] = EntityHandler
-								.getObjectDef(j3).getCommand1();
+										.getObjectDef(j3).getCommand1();
 								menuText2[menuLength] = "@cya@"
-									+ EntityHandler.getObjectDef(j3)
-									.getName();
+										+ EntityHandler.getObjectDef(j3)
+												.getName();
 								menuID[menuLength] = 420;
 								menuActionX[menuLength] = objectX[k2];
 								menuActionY[menuLength] = objectY[k2];
@@ -3892,10 +4032,10 @@ public class mudclient extends GameWindowMiddleMan {
 							if (!EntityHandler.getObjectDef(j3).getCommand2()
 									.equalsIgnoreCase("Examine")) {
 								menuText1[menuLength] = EntityHandler
-								.getObjectDef(j3).getCommand2();
+										.getObjectDef(j3).getCommand2();
 								menuText2[menuLength] = "@cya@"
-									+ EntityHandler.getObjectDef(j3)
-									.getName();
+										+ EntityHandler.getObjectDef(j3)
+												.getName();
 								menuID[menuLength] = 2400;
 								menuActionX[menuLength] = objectX[k2];
 								menuActionY[menuLength] = objectY[k2];
@@ -3905,10 +4045,11 @@ public class mudclient extends GameWindowMiddleMan {
 							}
 							menuText1[menuLength] = "Examine";
 							menuText2[menuLength] = "@cya@"
-								+ EntityHandler.getObjectDef(j3).getName()
-								+ (ourPlayer.admin >= 1 ? " @or1@(" + j3
-										+ ":" + (objectX[k2] + getAreaX()) + ","
-										+ (objectY[k2] + getAreaY()) + ")" : "");
+									+ EntityHandler.getObjectDef(j3).getName()
+									+ (ourPlayer.admin >= 1 ? " @or1@(" + j3
+											+ ":" + (objectX[k2] + getAreaX())
+											+ "," + (objectY[k2] + getAreaY())
+											+ ")" : "");
 							menuID[menuLength] = 3400;
 							menuActionType[menuLength] = j3;
 							menuLength++;
@@ -3926,8 +4067,8 @@ public class mudclient extends GameWindowMiddleMan {
 		if (selectedSpell >= 0
 				&& EntityHandler.getSpellDef(selectedSpell).getSpellType() <= 1) {
 			menuText1[menuLength] = "Cast "
-				+ EntityHandler.getSpellDef(selectedSpell).getName()
-				+ " on self";
+					+ EntityHandler.getSpellDef(selectedSpell).getName()
+					+ " on self";
 			menuText2[menuLength] = "";
 			menuID[menuLength] = 1000;
 			menuActionType[menuLength] = selectedSpell;
@@ -3938,8 +4079,8 @@ public class mudclient extends GameWindowMiddleMan {
 			if (selectedSpell >= 0) {
 				if (EntityHandler.getSpellDef(selectedSpell).getSpellType() == 6) {
 					menuText1[menuLength] = "Cast "
-						+ EntityHandler.getSpellDef(selectedSpell)
-						.getName() + " on ground";
+							+ EntityHandler.getSpellDef(selectedSpell)
+									.getName() + " on ground";
 					menuText2[menuLength] = "";
 					menuID[menuLength] = 900;
 					menuActionX[menuLength] = engineHandle.selectedX[l1];
@@ -3970,18 +4111,17 @@ public class mudclient extends GameWindowMiddleMan {
 		}
 		super.yOffset = 0;
 		GameWindowMiddleMan.maxPacketReadCount = 500;
-		if(appletMode) {
+		if (appletMode) {
 			loadCachedFile("Loading.rscd");
 			setLogo(Toolkit.getDefaultToolkit().getImage(
 					System.getProperty("user.home") + File.separator + "rsca"
-					+ File.separator + "Loading.rscd"));
+							+ File.separator + "Loading.rscd"));
 		}
-		
-			loadConfigFilter(); // 15%
-			if (lastLoadedNull) {
-				return;
-			}
-		
+
+		loadConfigFilter(); // 15%
+		if (lastLoadedNull) {
+			return;
+		}
 
 		aGraphics936 = getGraphics();
 		changeThreadSleepModifier(50);
@@ -4044,8 +4184,7 @@ public class mudclient extends GameWindowMiddleMan {
 		makeDPSMenu();
 		resetLoginVars();
 		menusLoaded = true;
-		
-		
+
 	}
 
 	private final void loadSprite(int id, String packageName, int amount) {
@@ -4090,7 +4229,7 @@ public class mudclient extends GameWindowMiddleMan {
 		drawDownloadProgress("Unpacking entities", 45, false);
 		int animationNumber = 0;
 		label0: for (int animationIndex = 0; animationIndex < EntityHandler
-		.animationCount(); animationIndex++) {
+				.animationCount(); animationIndex++) {
 			String s = EntityHandler.getAnimationDef(animationIndex).getName();
 			for (int nextAnimationIndex = 0; nextAnimationIndex < animationIndex; nextAnimationIndex++) {
 				if (!EntityHandler.getAnimationDef(nextAnimationIndex)
@@ -4098,7 +4237,7 @@ public class mudclient extends GameWindowMiddleMan {
 					continue;
 				}
 				EntityHandler.getAnimationDef(animationIndex).number = EntityHandler
-				.getAnimationDef(nextAnimationIndex).getNumber();
+						.getAnimationDef(nextAnimationIndex).getNumber();
 				continue label0;
 			}
 
@@ -4121,14 +4260,14 @@ public class mudclient extends GameWindowMiddleMan {
 		for (int i = 0; i < EntityHandler.textureCount(); i++) {
 			loadSprite(SPRITE_TEXTURE_START + i, "texture", 1);
 			Sprite sprite = ((GameImage) (gameGraphics)).sprites[SPRITE_TEXTURE_START
-			                                                     + i];
+					+ i];
 
 			int length = sprite.getWidth() * sprite.getHeight();
 			int[] pixels = sprite.getPixels();
 			int ai1[] = new int[32768];
 			for (int k = 0; k < length; k++) {
 				ai1[((pixels[k] & 0xf80000) >> 9) + ((pixels[k] & 0xf800) >> 6)
-				    + ((pixels[k] & 0xf8) >> 3)]++;
+						+ ((pixels[k] & 0xf8) >> 3)]++;
 			}
 			int[] dictionary = new int[256];
 			dictionary[0] = 0xff00ff;
@@ -4145,8 +4284,8 @@ public class mudclient extends GameWindowMiddleMan {
 							temp[i2] = temp[i2 - 1];
 						}
 						dictionary[k1] = ((i1 & 0x7c00) << 9)
-						+ ((i1 & 0x3e0) << 6) + ((i1 & 0x1f) << 3)
-						+ 0x40404;
+								+ ((i1 & 0x3e0) << 6) + ((i1 & 0x1f) << 3)
+								+ 0x40404;
 						temp[k1] = j1;
 						break;
 					}
@@ -4157,27 +4296,27 @@ public class mudclient extends GameWindowMiddleMan {
 			for (int l1 = 0; l1 < length; l1++) {
 				int j2 = pixels[l1];
 				int k2 = ((j2 & 0xf80000) >> 9) + ((j2 & 0xf800) >> 6)
-				+ ((j2 & 0xf8) >> 3);
+						+ ((j2 & 0xf8) >> 3);
 				int l2 = ai1[k2];
 				if (l2 == -1) {
 					int i3 = 0x3b9ac9ff;
 					int j3 = j2 >> 16 & 0xff;
-						int k3 = j2 >> 8 & 0xff;
-						int l3 = j2 & 0xff;
-						for (int i4 = 0; i4 < 256; i4++) {
-							int j4 = dictionary[i4];
-							int k4 = j4 >> 16 & 0xff;
+					int k3 = j2 >> 8 & 0xff;
+					int l3 = j2 & 0xff;
+					for (int i4 = 0; i4 < 256; i4++) {
+						int j4 = dictionary[i4];
+						int k4 = j4 >> 16 & 0xff;
 						int l4 = j4 >> 8 & 0xff;
 						int i5 = j4 & 0xff;
 						int j5 = (j3 - k4) * (j3 - k4) + (k3 - l4) * (k3 - l4)
-						+ (l3 - i5) * (l3 - i5);
+								+ (l3 - i5) * (l3 - i5);
 						if (j5 < i3) {
 							i3 = j5;
 							l2 = i4;
 						}
-						}
+					}
 
-						ai1[k2] = l2;
+					ai1[k2] = l2;
 				}
 				indices[l1] = (byte) l2;
 			}
@@ -4262,10 +4401,10 @@ public class mudclient extends GameWindowMiddleMan {
 			else if ((selectedItem >= 0 || selectedSpell >= 0)
 					&& menuLength > 1)
 				s = "@whi@" + menuText1[menuIndexes[0]] + " "
-				+ menuText2[menuIndexes[0]];
+						+ menuText2[menuIndexes[0]];
 			else if (k != -1)
 				s = menuText2[menuIndexes[k]] + ": @whi@"
-				+ menuText1[menuIndexes[0]];
+						+ menuText1[menuIndexes[0]];
 			if (menuLength == 2 && s != null)
 				s = s + "@whi@ / 1 more option";
 			if (menuLength > 2 && s != null)
@@ -4327,8 +4466,8 @@ public class mudclient extends GameWindowMiddleMan {
 		int minWidth = windowWidth - 83;
 		gameGraphics.drawBoxAlpha(i, j, c / 2, 24, k, 128);
 		gameGraphics.drawBoxAlpha(i + c / 2, j, c / 2, 24, l, 128);
-		gameGraphics.drawBoxAlpha(i, j + 24, c, c1 - 24, GameImage
-				.convertRGBToLong(220, 220, 220), 128);
+		gameGraphics.drawBoxAlpha(i, j + 24, c, c1 - 24,
+				GameImage.convertRGBToLong(220, 220, 220), 128);
 		gameGraphics.drawLineX(i, j + 24, c, 0);
 		gameGraphics.drawLineY(i + c / 2, j, 24, 0);
 		gameGraphics.drawLineX(i, (j + c1) - 16, c, 0);
@@ -4336,27 +4475,40 @@ public class mudclient extends GameWindowMiddleMan {
 		gameGraphics.drawText("Ignore", i + c / 4 + c / 2, j + 16, 4, 0);
 		friendsMenu.resetListTextCount(friendsMenuHandle);
 
-		if(anInt981 == 0) 
-		{
-			for(int i1 = 0; i1 < super.friendsCount; i1++) 
-			{
+		if (anInt981 == 0) {
+			for (int i1 = 0; i1 < super.friendsCount; i1++) {
 				String s;
-				if(super.friendsListOnlineStatus[i1] == 99)
+				if (super.friendsListOnlineStatus[i1] == 99)
 					s = "@gre@";
-				else 
-				if(super.friendsListOnlineStatus[i1] > 0)
+				else if (super.friendsListOnlineStatus[i1] > 0)
 					s = "@yel@";
 				else
 					s = "@red@";
-					
-				friendsMenu.drawMenuListText(friendsMenuHandle, i1, s + DataOperations.longToString(super.friendsListLongs[i1]) + "~" + (windowWidth - 73) + "~" + "@whi@Remove         WWWWWWWWWW");
+
+				friendsMenu
+						.drawMenuListText(
+								friendsMenuHandle,
+								i1,
+								s
+										+ DataOperations
+												.longToString(super.friendsListLongs[i1])
+										+ "~" + (windowWidth - 73) + "~"
+										+ "@whi@Remove         WWWWWWWWWW");
 			}
 
 		}
 
 		if (anInt981 == 1) {
 			for (int j1 = 0; j1 < super.ignoreListCount; j1++)
-				friendsMenu.drawMenuListText(friendsMenuHandle, j1, "@yel@" + DataOperations.longToString(super.ignoreListLongs[j1]) + "~" + (windowWidth - 73) + "~" + "@whi@Remove         WWWWWWWWWW");
+				friendsMenu
+						.drawMenuListText(
+								friendsMenuHandle,
+								j1,
+								"@yel@"
+										+ DataOperations
+												.longToString(super.ignoreListLongs[j1])
+										+ "~" + (windowWidth - 73) + "~"
+										+ "@whi@Remove         WWWWWWWWWW");
 
 		}
 
@@ -4366,25 +4518,32 @@ public class mudclient extends GameWindowMiddleMan {
 
 			if (k1 >= 0 && super.mouseX < maxWidth) {
 				if (super.mouseX > minWidth)
-					gameGraphics.drawText("Click to remove "
-							+ DataOperations
-							.longToString(super.friendsListLongs[k1]),
-							i + c / 2, j + 35, 1, 0xffffff);
+					gameGraphics
+							.drawText(
+									"Click to remove "
+											+ DataOperations
+													.longToString(super.friendsListLongs[k1]),
+									i + c / 2, j + 35, 1, 0xffffff);
 				else if (super.friendsListOnlineStatus[k1] == 99)
-					gameGraphics.drawText("Click to message "
-							+ DataOperations
-							.longToString(super.friendsListLongs[k1]),
-							i + c / 2, j + 35, 1, 0xffffff);
+					gameGraphics
+							.drawText(
+									"Click to message "
+											+ DataOperations
+													.longToString(super.friendsListLongs[k1]),
+									i + c / 2, j + 35, 1, 0xffffff);
 				else if (super.friendsListOnlineStatus[k1] > 0)
-					gameGraphics.drawText(DataOperations
-							.longToString(super.friendsListLongs[k1])
-							+ " is on world "
-							+ super.friendsListOnlineStatus[k1], i + c / 2,
-							j + 35, 1, 0xffffff);
+					gameGraphics.drawText(
+							DataOperations
+									.longToString(super.friendsListLongs[k1])
+									+ " is on world "
+									+ super.friendsListOnlineStatus[k1], i + c
+									/ 2, j + 35, 1, 0xffffff);
 				else
-					gameGraphics.drawText(DataOperations
-							.longToString(super.friendsListLongs[k1])
-							+ " is offline", i + c / 2, j + 35, 1, 0xffffff);
+					gameGraphics.drawText(
+							DataOperations
+									.longToString(super.friendsListLongs[k1])
+									+ " is offline", i + c / 2, j + 35, 1,
+							0xffffff);
 			} else
 				gameGraphics.drawText("Click a name to send a message", i + c
 						/ 2, j + 35, 1, 0xffffff);
@@ -4403,10 +4562,12 @@ public class mudclient extends GameWindowMiddleMan {
 			int l1 = friendsMenu.selectedListIndex(friendsMenuHandle);
 			if (l1 >= 0 && super.mouseX < maxWidth && super.mouseX > minWidth) {
 				if (super.mouseX > minWidth)
-					gameGraphics.drawText("Click to remove "
-							+ DataOperations
-							.longToString(super.ignoreListLongs[l1]), i
-							+ c / 2, j + 35, 1, 0xffffff);
+					gameGraphics
+							.drawText(
+									"Click to remove "
+											+ DataOperations
+													.longToString(super.ignoreListLongs[l1]),
+									i + c / 2, j + 35, 1, 0xffffff);
 			} else {
 				gameGraphics.drawText("Blocking messages from:", i + c / 2,
 						j + 35, 1, 0xffffff);
@@ -4423,7 +4584,7 @@ public class mudclient extends GameWindowMiddleMan {
 		if (!flag)
 			return;
 		i = super.mouseX
-		- (((GameImage) (gameGraphics)).menuDefaultWidth - 199);
+				- (((GameImage) (gameGraphics)).menuDefaultWidth - 199);
 		j = super.mouseY - 36;
 		if (i >= 0 && j >= 0 && i < 196 && j < 182) {
 			friendsMenu.updateActions(i
@@ -4482,7 +4643,8 @@ public class mudclient extends GameWindowMiddleMan {
 			engineHandle.playerIsAlive = true;
 			return false;
 		}
-		gameGraphics.drawText("Loading... Please wait", 256+xAddition, 192+yAddition, 1, 0xffffff);
+		gameGraphics.drawText("Loading... Please wait", 256 + xAddition,
+				192 + yAddition, 1, 0xffffff);
 		drawChatMessageTabs();
 		drawOurSpritesOnScreen();
 		gameGraphics.drawImage(aGraphics936, 0, 0);
@@ -4525,8 +4687,8 @@ public class mudclient extends GameWindowMiddleMan {
 				int k6 = ((l2 + l2 + i6) * magicLoc) / 2;
 				if (j2 >= 0 && l2 >= 0 && j2 < 96 && l2 < 96) {
 					gameCamera.addModel(model);
-					model.method191(j6, -engineHandle.getAveragedElevation(j6,
-							k6), k6);
+					model.method191(j6,
+							-engineHandle.getAveragedElevation(j6, k6), k6);
 					engineHandle.method412(j2, l2, k3, m4);
 					if (k3 == 74)
 						model.method190(0, -480, 0);
@@ -4602,10 +4764,10 @@ public class mudclient extends GameWindowMiddleMan {
 			l = GameImage.convertRGBToLong(220, 220, 220);
 		gameGraphics.drawBoxAlpha(i, j, c / 2, 24, k, 128);
 		gameGraphics.drawBoxAlpha(i + c / 2, j, c / 2, 24, l, 128);
-		gameGraphics.drawBoxAlpha(i, j + 24, c, 90, GameImage.convertRGBToLong(
-				220, 220, 220), 128);
-		gameGraphics.drawBoxAlpha(i, j + 24 + 90, c, c1 - 90 - 24, GameImage
-				.convertRGBToLong(160, 160, 160), 128);
+		gameGraphics.drawBoxAlpha(i, j + 24, c, 90,
+				GameImage.convertRGBToLong(220, 220, 220), 128);
+		gameGraphics.drawBoxAlpha(i, j + 24 + 90, c, c1 - 90 - 24,
+				GameImage.convertRGBToLong(160, 160, 160), 128);
 		gameGraphics.drawLineX(i, j + 24, c, 0);
 		gameGraphics.drawLineY(i + c / 2, j, 24, 0);
 		gameGraphics.drawLineX(i, j + 113, c, 0);
@@ -4618,8 +4780,8 @@ public class mudclient extends GameWindowMiddleMan {
 				String s = "@yel@";
 				for (Entry e : EntityHandler.getSpellDef(spellIndex)
 						.getRunesRequired()) {
-					if (hasRequiredRunes((Integer) e.getKey(), (Integer) e
-							.getValue())) {
+					if (hasRequiredRunes((Integer) e.getKey(),
+							(Integer) e.getValue())) {
 						continue;
 					}
 					s = "@whi@";
@@ -4633,30 +4795,34 @@ public class mudclient extends GameWindowMiddleMan {
 						+ EntityHandler.getSpellDef(spellIndex).getReqLevel()
 						+ ": "
 						+ EntityHandler.getSpellDef(spellIndex).getName());
-				
+
 			}
 
 			spellMenu.drawMenu();
 			int selectedSpellIndex = spellMenu
-			.selectedListIndex(spellMenuHandle);
+					.selectedListIndex(spellMenuHandle);
 			if (selectedSpellIndex != -1) {
-				gameGraphics.drawString("Level "
-						+ EntityHandler.getSpellDef(selectedSpellIndex)
-						.getReqLevel()
-						+ ": "
-						+ EntityHandler.getSpellDef(selectedSpellIndex)
-						.getName(), i + 2, j + 124, 1, 0xffff00);
-				gameGraphics.drawString(EntityHandler.getSpellDef(
-						selectedSpellIndex).getDescription(), i + 2, j + 136,
-						0, 0xffffff);
+				gameGraphics
+						.drawString(
+								"Level "
+										+ EntityHandler.getSpellDef(
+												selectedSpellIndex)
+												.getReqLevel()
+										+ ": "
+										+ EntityHandler.getSpellDef(
+												selectedSpellIndex).getName(),
+								i + 2, j + 124, 1, 0xffff00);
+				gameGraphics.drawString(
+						EntityHandler.getSpellDef(selectedSpellIndex)
+								.getDescription(), i + 2, j + 136, 0, 0xffffff);
 				int i4 = 0;
 				for (Entry<Integer, Integer> e : EntityHandler.getSpellDef(
 						selectedSpellIndex).getRunesRequired()) {
 					int runeID = e.getKey();
 					gameGraphics.drawPicture(i + 2 + i4 * 44, j + 150,
 							SPRITE_ITEM_START
-							+ EntityHandler.getItemDef(runeID)
-							.getSprite());
+									+ EntityHandler.getItemDef(runeID)
+											.getSprite());
 					int runeInvCount = inventoryCount(runeID);
 					int runeCount = e.getValue();
 					String s2 = "@red@";
@@ -4665,7 +4831,7 @@ public class mudclient extends GameWindowMiddleMan {
 					}
 					gameGraphics.drawString(
 							s2 + runeInvCount + "/" + runeCount, i + 2 + i4
-							* 44, j + 150, 1, 0xffffff);
+									* 44, j + 150, 1, 0xffffff);
 					i4++;
 				}
 			} else {
@@ -4693,20 +4859,23 @@ public class mudclient extends GameWindowMiddleMan {
 						+ EntityHandler.getPrayerDef(j3).getReqLevel() + ": "
 						+ EntityHandler.getPrayerDef(j3).getName(), i + c / 2,
 						j + 130, 1, 0xffff00);
-				if(j3 == 13) {
-					if(playerStatBase[5] > 39) {
-						int percent = (int)((playerStatBase[5]-40) * 0.6);
+				if (j3 == 13) {
+					if (playerStatBase[5] > 39) {
+						int percent = (int) ((playerStatBase[5] - 40) * 0.6);
 						percent += 60;
-						if(percent > 100) percent = 100;
-						gameGraphics.drawText(percent + "% protection from ranged attack", i + c / 2, j + 145, 0, 0xffffff);
-					}
-					else
-						gameGraphics.drawText("60% protection from ranged attack", i + c / 2, j + 145, 0, 0xffffff);
-				}
-				else
-				gameGraphics.drawText(EntityHandler.getPrayerDef(j3)
-						.getDescription(), i + c / 2, j + 145, 0, 0xffffff);
-		
+						if (percent > 100)
+							percent = 100;
+						gameGraphics.drawText(percent
+								+ "% protection from ranged attack", i + c / 2,
+								j + 145, 0, 0xffffff);
+					} else
+						gameGraphics.drawText(
+								"60% protection from ranged attack", i + c / 2,
+								j + 145, 0, 0xffffff);
+				} else
+					gameGraphics.drawText(EntityHandler.getPrayerDef(j3)
+							.getDescription(), i + c / 2, j + 145, 0, 0xffffff);
+
 				gameGraphics.drawText("Drain rate: "
 						+ EntityHandler.getPrayerDef(j3).getDrainRate(), i + c
 						/ 2, j + 160, 1, 0);
@@ -4718,7 +4887,7 @@ public class mudclient extends GameWindowMiddleMan {
 		if (!flag)
 			return;
 		i = super.mouseX
-		- (((GameImage) (gameGraphics)).menuDefaultWidth - 199);
+				- (((GameImage) (gameGraphics)).menuDefaultWidth - 199);
 		j = super.mouseY - 36;
 		if (i >= 0 && j >= 0 && i < 196 && j < 182) {
 			spellMenu.updateActions(i
@@ -4793,7 +4962,6 @@ public class mudclient extends GameWindowMiddleMan {
 		}
 	}
 
-
 	protected final void handleWheelRotate(int units) {
 		if (super.controlDown) {
 			if (units > -1) {
@@ -4816,29 +4984,27 @@ public class mudclient extends GameWindowMiddleMan {
 		case 123: // F12
 			takeScreenshot(true);
 			break;
-		
+
 		case 33: {
-			if(cameraHeight < 300){
-			cameraHeight += 25;
-			}
-			else{
+			if (cameraHeight < 300) {
+				cameraHeight += 25;
+			} else {
 				cameraHeight -= 25;
 			}
 			break;
 		}
 		case 34: { // Page Down {
-			if(cameraHeight > 1500){
+			if (cameraHeight > 1500) {
 				cameraHeight -= 25;
-			}
-			else{
+			} else {
 				cameraHeight += 25;
-				}
-			break;
 			}
+			break;
+		}
 		case 36: {
 			cameraHeight = 750;
 			break;
-			}
+		}
 		}
 		if (loggedIn == 0) {
 			if (loginScreenNumber == 0)
@@ -4865,8 +5031,8 @@ public class mudclient extends GameWindowMiddleMan {
 	private final void drawShopBox() {
 		if (mouseButtonClick != 0) {
 			mouseButtonClick = 0;
-			int i = super.mouseX - 52-xAddition;
-			int j = super.mouseY - 44-yAddition;
+			int i = super.mouseX - 52 - xAddition;
+			int j = super.mouseY - 44 - yAddition;
 			if (i >= 0 && j >= 12 && i < 408 && j < 246) {
 				int k = 0;
 				for (int i1 = 0; i1 < 5; i1++) {
@@ -4895,7 +5061,7 @@ public class mudclient extends GameWindowMiddleMan {
 							// 100;
 							super.streamClass.createPacket(128);
 							super.streamClass
-							.add2ByteInt(shopItems[selectedShopItemIndex]);
+									.add2ByteInt(shopItems[selectedShopItemIndex]);
 							super.streamClass.add4ByteInt(i4);
 							super.streamClass.formatPacket();
 						}
@@ -4908,7 +5074,7 @@ public class mudclient extends GameWindowMiddleMan {
 							// 100;
 							super.streamClass.createPacket(255);
 							super.streamClass
-							.add2ByteInt(shopItems[selectedShopItemIndex]);
+									.add2ByteInt(shopItems[selectedShopItemIndex]);
 							super.streamClass.add4ByteInt(j4);
 							super.streamClass.formatPacket();
 						}
@@ -4921,8 +5087,8 @@ public class mudclient extends GameWindowMiddleMan {
 				return;
 			}
 		}
-		int byte0 = 52+xAddition;
-		int byte1 = 44+yAddition;
+		int byte0 = 52 + xAddition;
+		int byte1 = 44 + yAddition;
 		gameGraphics.drawBox(byte0, byte1, 408, 12, 192);
 		int l = 0x989898;
 		gameGraphics.drawBoxAlpha(byte0, byte1 + 12, 408, 17, l, 160);
@@ -4957,13 +5123,14 @@ public class mudclient extends GameWindowMiddleMan {
 				if (shopItems[k3] != -1) {
 					gameGraphics.spriteClip4(j5, i6, 48, 32, SPRITE_ITEM_START
 							+ EntityHandler.getItemDef(shopItems[k3])
-							.getSprite(), EntityHandler.getItemDef(
-									shopItems[k3]).getPictureMask(), 0, 0, false);
+									.getSprite(),
+							EntityHandler.getItemDef(shopItems[k3])
+									.getPictureMask(), 0, 0, false);
 					gameGraphics.drawString(String.valueOf(shopItemCount[k3]),
 							j5 + 1, i6 + 10, 1, 65280);
-					gameGraphics.drawBoxTextRight(String
-							.valueOf(inventoryCount(shopItems[k3])), j5 + 47,
-							i6 + 10, 1, 65535);
+					gameGraphics.drawBoxTextRight(
+							String.valueOf(inventoryCount(shopItems[k3])),
+							j5 + 47, i6 + 10, 1, 65535);
 				}
 				k3++;
 			}
@@ -4979,8 +5146,10 @@ public class mudclient extends GameWindowMiddleMan {
 		int i5 = shopItems[selectedShopItemIndex];
 		if (i5 != -1) {
 			if (shopItemCount[selectedShopItemIndex] > 0) {
-				int j6 = shopItemsBuyPrice[selectedShopItemIndex];//(shopItemBuyPriceModifier * EntityHandler.getItemDef(
-				//	i5).getBasePrice()) / 100;
+				int j6 = shopItemsBuyPrice[selectedShopItemIndex];// (shopItemBuyPriceModifier
+																	// *
+																	// EntityHandler.getItemDef(
+				// i5).getBasePrice()) / 100;
 				gameGraphics.drawString("Buy a new "
 						+ EntityHandler.getItemDef(i5).getName() + " for " + j6
 						+ "gp", byte0 + 2, byte1 + 214, 1, 0xffff00);
@@ -4997,8 +5166,10 @@ public class mudclient extends GameWindowMiddleMan {
 						byte0 + 204, byte1 + 214, 3, 0xffff00);
 			}
 			if (inventoryCount(i5) > 0) {
-				int k6 = shopItemsSellPrice[selectedShopItemIndex];//(shopItemSellPriceModifier * EntityHandler.getItemDef(
-				//i5).getBasePrice()) / 100;
+				int k6 = shopItemsSellPrice[selectedShopItemIndex];// (shopItemSellPriceModifier
+																	// *
+																	// EntityHandler.getItemDef(
+				// i5).getBasePrice()) / 100;
 				gameGraphics.drawBoxTextRight("Sell your "
 						+ EntityHandler.getItemDef(i5).getName() + " for " + k6
 						+ "gp", byte0 + 405, byte1 + 239, 1, 0xffff00);
@@ -5033,55 +5204,69 @@ public class mudclient extends GameWindowMiddleMan {
 		mudclient.loadCachedFile(filename);
 		return super.load(Config.CONF_DIR + File.separator + filename);
 	}
+
 	/**
 	 * Draws our options menu (client size etc)
+	 * 
 	 * @param flag
 	 */
 	private final void drawOurOptionsMenu(boolean flag) {
 		int i = ((GameImage) (gameGraphics)).menuDefaultWidth - 232;
-		
+
 		int j = 36;
 
 		int c = 360;
-		gameGraphics.drawBoxAlpha(i, 36, c, 176, GameImage.convertRGBToLong(181,181, 181), 160);
+		gameGraphics.drawBoxAlpha(i, 36, c, 176,
+				GameImage.convertRGBToLong(181, 181, 181), 160);
 
 		/**
 		 * Draws the gray box behind the icon
 		 */
-		gameGraphics.drawBox(i, 3, 31, 32, GameImage.convertRGBToLong(0, 0, 131));
-		
+		gameGraphics.drawBox(i, 3, 31, 32,
+				GameImage.convertRGBToLong(0, 0, 131));
 
 		int temp = 10;
-		gameGraphics.drawBox(i, 26, 274, temp, GameImage.convertRGBToLong(0, 0, 131));
-		gameGraphics.drawBox(i, 26+temp, 274, 1, GameImage.convertRGBToLong(0, 0, 0));
-		
-		gameGraphics.drawString("screen size", i+147, 26+temp, 4, 0xffffff);
+		gameGraphics.drawBox(i, 26, 274, temp,
+				GameImage.convertRGBToLong(0, 0, 131));
+		gameGraphics.drawBox(i, 26 + temp, 274, 1,
+				GameImage.convertRGBToLong(0, 0, 0));
+
+		gameGraphics.drawString("screen size", i + 147, 26 + temp, 4, 0xffffff);
 		int k = i + 3;
 		int i1 = j + 15;
 
 		i1 += 15;
 		if (Resolutions.fs)
-			gameGraphics.drawString("          Fullscreen                        @gre@On", k, i1, 1,
-					0xffffff);
+			gameGraphics.drawString(
+					"          Fullscreen                        @gre@On", k,
+					i1, 1, 0xffffff);
 		else
-			gameGraphics.drawString("          Fullscreen                        @red@Off", k, i1,
-					1, 0xffffff);
+			gameGraphics.drawString(
+					"          Fullscreen                        @red@Off", k,
+					i1, 1, 0xffffff);
 		i1 += 15;
-			gameGraphics.drawString("          Screen size               @gre@"+ reso.getResolution(), k, i1, 1,	0xffffff);
+		gameGraphics.drawString("          Screen size               @gre@"
+				+ reso.getResolution(), k, i1, 1, 0xffffff);
 		i1 += 15;
-			gameGraphics.drawString("          Refresh rate              @gre@"+ reso.getRefreshRate(), k, i1, 1,	0xffffff);
+		gameGraphics.drawString("          Refresh rate              @gre@"
+				+ reso.getRefreshRate(), k, i1, 1, 0xffffff);
 		i1 += 30;
-		gameGraphics.drawString("      Window size will change after you", k, i1, 1,	0xffffff);
+		gameGraphics.drawString("      Window size will change after you", k,
+				i1, 1, 0xffffff);
 		i1 += 15;
-		gameGraphics.drawString("      restart the client.", k, i1, 1,	0xffffff);
+		gameGraphics
+				.drawString("      restart the client.", k, i1, 1, 0xffffff);
 		i1 += 30;
-		gameGraphics.drawString("      Going to fullsreen and back does", k, i1, 1,	0xffffff);
+		gameGraphics.drawString("      Going to fullsreen and back does", k,
+				i1, 1, 0xffffff);
 		i1 += 15;
-		gameGraphics.drawString("      not require a client restart.", k, i1, 1,	0xffffff);
-		
+		gameGraphics.drawString("      not require a client restart.", k, i1,
+				1, 0xffffff);
+
 		if (!flag)
 			return;
-		i = super.mouseX - (((GameImage) (gameGraphics)).menuDefaultWidth - 199);
+		i = super.mouseX
+				- (((GameImage) (gameGraphics)).menuDefaultWidth - 199);
 		j = super.mouseY - 36;
 		if (i >= 0 && j >= 0 && i < 196 && j < 265) {
 			int l1 = ((GameImage) (gameGraphics)).menuDefaultWidth - 199;
@@ -5089,31 +5274,52 @@ public class mudclient extends GameWindowMiddleMan {
 			char c1 = '\304';
 			int l = l1 + 3;
 			int j1 = byte0 + 30;
-			if (super.mouseX > l && super.mouseX < l + c1  && super.mouseY > j1 - 12 && super.mouseY < j1 + 4 && mouseButtonClick == 1) {
-				if(gameFrame == null) {
-					mudclient.drawPopup("You cannot switch to fullscreen from the webclient, sorry!");
+			if (super.mouseX > l && super.mouseX < l + c1
+					&& super.mouseY > j1 - 12 && super.mouseY < j1 + 4
+					&& mouseButtonClick == 1) {
+				if (gameFrame == null) {
+					mudclient
+							.drawPopup("You cannot switch to fullscreen from the webclient, sorry!");
 					return;
 				}
-				
-				if(Resolutions.fs) { 
+
+				if (Resolutions.fs) {
 					gameFrame.makeRegularScreen();
-				}
-				else {
+				} else {
 					gameFrame.makeFullScreen();
 				}
-			
-					
+
 			}
 			j1 += 15;
-			//amera error
+			// amera error
 			if (super.mouseX > l && super.mouseX < l + c1
 					&& super.mouseY > j1 - 12 && super.mouseY < j1 + 4
 					&& mouseButtonClick == 1) {
 				reso.findNextResolution();
-				Config.storeConfig("width", "" + Display.displaymodes.get(Resolutions.resolutionSetting).getWidth());
-				Config.storeConfig("height", "" + Display.displaymodes.get(Resolutions.resolutionSetting).getHeight());
-				Config.storeConfig("refreshRate", "" + Display.displaymodes.get(Resolutions.resolutionSetting).getRefreshRate());
-				Config.storeConfig("bitDepth", "" + Display.displaymodes.get(Resolutions.resolutionSetting).getBitDepth());
+				Config.storeConfig(
+						"width",
+						""
+								+ Display.displaymodes.get(
+										Resolutions.resolutionSetting)
+										.getWidth());
+				Config.storeConfig(
+						"height",
+						""
+								+ Display.displaymodes.get(
+										Resolutions.resolutionSetting)
+										.getHeight());
+				Config.storeConfig(
+						"refreshRate",
+						""
+								+ Display.displaymodes.get(
+										Resolutions.resolutionSetting)
+										.getRefreshRate());
+				Config.storeConfig(
+						"bitDepth",
+						""
+								+ Display.displaymodes.get(
+										Resolutions.resolutionSetting)
+										.getBitDepth());
 			}
 			j1 += 15;
 			if (super.mouseX > l && super.mouseX < l + c1
@@ -5174,28 +5380,29 @@ public class mudclient extends GameWindowMiddleMan {
 
 			}
 			j1 += 15;
-		
+
 			j1 += 20;
 			if (super.mouseX > l && super.mouseX < l + c1
 					&& super.mouseY > j1 - 12 && super.mouseY < j1 + 4
 					&& mouseButtonClick == 1)
 
-			mouseButtonClick = 0;
+				mouseButtonClick = 0;
 		}
 	}
+
 	private final void drawOptionsMenu(boolean flag) {
 		int i = ((GameImage) (gameGraphics)).menuDefaultWidth - 199;
 		int j = 36;
 		gameGraphics.drawPicture(i - 49, 3, SPRITE_MEDIA_START + 6);
 		char c = '\304';
-		gameGraphics.drawBoxAlpha(i, 36, c, 65, GameImage.convertRGBToLong(181,
-				181, 181), 160);
-		gameGraphics.drawBoxAlpha(i, 101, c, 65, GameImage.convertRGBToLong(
-				181, 181, 181), 160);
-		gameGraphics.drawBoxAlpha(i, 166, c, 95, GameImage.convertRGBToLong(
-				181, 181, 181), 160);
-		gameGraphics.drawBoxAlpha(i, 261, c, 52, GameImage.convertRGBToLong(
-				181, 181, 181), 160);
+		gameGraphics.drawBoxAlpha(i, 36, c, 65,
+				GameImage.convertRGBToLong(181, 181, 181), 160);
+		gameGraphics.drawBoxAlpha(i, 101, c, 65,
+				GameImage.convertRGBToLong(181, 181, 181), 160);
+		gameGraphics.drawBoxAlpha(i, 166, c, 95,
+				GameImage.convertRGBToLong(181, 181, 181), 160);
+		gameGraphics.drawBoxAlpha(i, 261, c, 52,
+				GameImage.convertRGBToLong(181, 181, 181), 160);
 		int k = i + 3;
 		int i1 = j + 15;
 		gameGraphics.drawString("Game options - click to toggle", k, i1, 1, 0);
@@ -5222,11 +5429,11 @@ public class mudclient extends GameWindowMiddleMan {
 					0xffffff);
 		i1 += 15;
 		gameGraphics
-		.drawString("Client assists - click to toggle", k, i1, 1, 0);
+				.drawString("Client assists - click to toggle", k, i1, 1, 0);
 		i1 += 15;
 		if (showRoof)
 			gameGraphics
-			.drawString("Hide Roofs - @red@off", k, i1, 1, 0xffffff);
+					.drawString("Hide Roofs - @red@off", k, i1, 1, 0xffffff);
 		else
 			gameGraphics.drawString("Hide Roofs - @gre@on", k, i1, 1, 0xffffff);
 		i1 += 15;
@@ -5248,7 +5455,7 @@ public class mudclient extends GameWindowMiddleMan {
 			gameGraphics.drawString("Fog of War - @gre@on", k, i1, 1, 0xffffff);
 		else
 			gameGraphics
-			.drawString("Fog of War - @red@off", k, i1, 1, 0xffffff);
+					.drawString("Fog of War - @red@off", k, i1, 1, 0xffffff);
 		i1 += 15;
 		i1 += 5;
 		gameGraphics.drawString("Privacy settings. Will be applied to", i + 3,
@@ -5296,7 +5503,7 @@ public class mudclient extends GameWindowMiddleMan {
 		if (!flag)
 			return;
 		i = super.mouseX
-		- (((GameImage) (gameGraphics)).menuDefaultWidth - 199);
+				- (((GameImage) (gameGraphics)).menuDefaultWidth - 199);
 		j = super.mouseY - 36;
 		if (i >= 0 && j >= 0 && i < 196 && j < 265) {
 			int l1 = ((GameImage) (gameGraphics)).menuDefaultWidth - 199;
@@ -5314,7 +5521,7 @@ public class mudclient extends GameWindowMiddleMan {
 				super.streamClass.formatPacket();
 			}
 			j1 += 15;
-			//amera error
+			// amera error
 			if (super.mouseX > l && super.mouseX < l + c1
 					&& super.mouseY > j1 - 12 && super.mouseY < j1 + 4
 					&& mouseButtonClick == 1) {
@@ -5420,8 +5627,8 @@ public class mudclient extends GameWindowMiddleMan {
 		try {
 			if (super.keyDownDown) {
 				currentChat++;
-				if(currentChat >= messages.size()) {
-					currentChat = messages.size()-1;
+				if (currentChat >= messages.size()) {
+					currentChat = messages.size() - 1;
 					super.keyDownDown = false;
 					return;
 				}
@@ -5429,9 +5636,9 @@ public class mudclient extends GameWindowMiddleMan {
 				super.keyDownDown = false;
 			}
 			if (super.keyUpDown) {
-				
+
 				currentChat--;
-				if(currentChat < 0) {
+				if (currentChat < 0) {
 					currentChat = 0;
 					super.keyUpDown = false;
 					return;
@@ -5524,7 +5731,7 @@ public class mudclient extends GameWindowMiddleMan {
 				if (i1 != -1)
 					mob.currentSprite = i1;
 				if (mob.currentX == mob.waypointsX[l2]
-				                                   && mob.currentY == mob.waypointsY[l2])
+						&& mob.currentY == mob.waypointsY[l2])
 					mob.waypointEndSprite = (l2 + 1) % 10;
 			} else {
 				mob.currentSprite = mob.nextSprite;
@@ -5549,10 +5756,11 @@ public class mudclient extends GameWindowMiddleMan {
 		}
 
 		for (int j = 0; j < npcCount; j++) {
-			
+
 			Mob mob_1 = npcArray[j];
-			if(mob_1 == null) {
-				System.out.println("MOB == NULL, npcCount: " + npcCount + ", j: " + j);
+			if (mob_1 == null) {
+				System.out.println("MOB == NULL, npcCount: " + npcCount
+						+ ", j: " + j);
 				System.exit(1);
 			}
 			int j1 = (mob_1.waypointCurrent + 1) % 10;
@@ -5613,7 +5821,7 @@ public class mudclient extends GameWindowMiddleMan {
 				if (i3 != -1)
 					mob_1.currentSprite = i3;
 				if (mob_1.currentX == mob_1.waypointsX[k4]
-				                                       && mob_1.currentY == mob_1.waypointsY[k4])
+						&& mob_1.currentY == mob_1.waypointsY[k4])
 					mob_1.waypointEndSprite = (k4 + 1) % 10;
 			} else {
 				mob_1.currentSprite = mob_1.nextSprite;
@@ -5660,10 +5868,10 @@ public class mudclient extends GameWindowMiddleMan {
 			}
 			if (lastAutoCameraRotatePlayerX != ourPlayer.currentX)
 				lastAutoCameraRotatePlayerX += (ourPlayer.currentX - lastAutoCameraRotatePlayerX)
-				/ (16 + (cameraHeight - 500) / 15);
+						/ (16 + (cameraHeight - 500) / 15);
 			if (lastAutoCameraRotatePlayerY != ourPlayer.currentY)
 				lastAutoCameraRotatePlayerY += (ourPlayer.currentY - lastAutoCameraRotatePlayerY)
-				/ (16 + (cameraHeight - 500) / 15);
+						/ (16 + (cameraHeight - 500) / 15);
 			if (configAutoCameraAngle) {
 				int k1 = cameraAutoAngle * 32;
 				int j3 = k1 - cameraRotation;
@@ -5683,7 +5891,7 @@ public class mudclient extends GameWindowMiddleMan {
 						j3 = -j3;
 					}
 					cameraRotation += ((cameraRotationBaseAddition * j3 + 255) / 256)
-					* byte0;
+							* byte0;
 					cameraRotation &= 0xff;
 				} else {
 					cameraRotationBaseAddition = 0;
@@ -5728,25 +5936,29 @@ public class mudclient extends GameWindowMiddleMan {
 			return;
 		}
 		if (super.mouseY > windowHeight - 4) {
-			if (super.mouseX > 15+xAddition && super.mouseX < 96+xAddition
+			if (super.mouseX > 15 + xAddition && super.mouseX < 96 + xAddition
 					&& super.lastMouseDownButton == 1)
 				messagesTab = 0;
-			if (super.mouseX > 110+xAddition && super.mouseX < 194+xAddition
+			if (super.mouseX > 110 + xAddition
+					&& super.mouseX < 194 + xAddition
 					&& super.lastMouseDownButton == 1) {
 				messagesTab = 1;
 				gameMenu.anIntArray187[messagesHandleType2] = 0xf423f;
 			}
-			if (super.mouseX > 215+xAddition && super.mouseX < 295+xAddition
+			if (super.mouseX > 215 + xAddition
+					&& super.mouseX < 295 + xAddition
 					&& super.lastMouseDownButton == 1) {
 				messagesTab = 2;
 				gameMenu.anIntArray187[messagesHandleType5] = 0xf423f;
 			}
-			if (super.mouseX > 315+xAddition && super.mouseX < 395+xAddition
+			if (super.mouseX > 315 + xAddition
+					&& super.mouseX < 395 + xAddition
 					&& super.lastMouseDownButton == 1) {
 				messagesTab = 3;
 				gameMenu.anIntArray187[messagesHandleType6] = 0xf423f;
 			}
-			if (super.mouseX > 417+xAddition && super.mouseX < 497+xAddition
+			if (super.mouseX > 417 + xAddition
+					&& super.mouseX < 497 + xAddition
 					&& super.lastMouseDownButton == 1) {
 				showAbuseWindow = 1;
 				abuseSelectedType = 0;
@@ -5772,11 +5984,13 @@ public class mudclient extends GameWindowMiddleMan {
 				s = s.substring(2);
 				if (!handleCommand(s) && !sleeping && !ignoreNext) {
 					sendChatString(s);
-					if(messages.size() == 0 || !messages.get(messages.size()-1).equalsIgnoreCase("::"+s)) {
+					if (messages.size() == 0
+							|| !messages.get(messages.size() - 1)
+									.equalsIgnoreCase("::" + s)) {
 						messages.add("::" + s);
 						currentChat = messages.size();
-					}
-					else if(messages.get(messages.size()-1).equalsIgnoreCase("::"+s)) {
+					} else if (messages.get(messages.size() - 1)
+							.equalsIgnoreCase("::" + s)) {
 						currentChat = messages.size();
 					}
 				}
@@ -5787,14 +6001,16 @@ public class mudclient extends GameWindowMiddleMan {
 						chatMessage.length).trim();
 				if (s.toLowerCase().trim().startsWith(";;"))
 					return;
-				if(messages.size() == 0 || !messages.get(messages.size()-1).equalsIgnoreCase(s)) {
+				if (messages.size() == 0
+						|| !messages.get(messages.size() - 1).equalsIgnoreCase(
+								s)) {
 					messages.add(s);
 					currentChat = messages.size();
-				}
-				else if(messages.get(messages.size()-1).equalsIgnoreCase(s)) {
+				} else if (messages.get(messages.size() - 1)
+						.equalsIgnoreCase(s)) {
 					currentChat = messages.size();
 				}
-				
+
 				ourPlayer.lastMessageTimeout = 150;
 				ourPlayer.lastMessage = s;
 				displayMessage(ourPlayer.name + ": " + s, 2, ourPlayer.admin);
@@ -5901,59 +6117,49 @@ public class mudclient extends GameWindowMiddleMan {
 				fogVar = 0;
 			}
 
-			if (actionPictureType > 0)
-				actionPictureType--;
-			else if (actionPictureType < 0)
-				actionPictureType++;
-			gameCamera.method301(17);
-			modelUpdatingTimer++;
-			if (modelUpdatingTimer > 5) {
-				modelUpdatingTimer = 0;
-				modelFireLightningSpellNumber = (modelFireLightningSpellNumber + 1) % 3;
-				modelTorchNumber = (modelTorchNumber + 1) % 4;
-				modelClawSpellNumber = (modelClawSpellNumber + 1) % 5;
-			}
-			for (int k2 = 0; k2 < objectCount; k2++) {
-				int l3 = objectX[k2];
-				int l4 = objectY[k2];
-				if (l3 >= 0 && l4 >= 0 && l3 < 96 && l4 < 96
-						&& objectType[k2] == 74)
-					objectModelArray[k2].method188(1, 0, 0);
-			}
+		if (actionPictureType > 0)
+			actionPictureType--;
+		else if (actionPictureType < 0)
+			actionPictureType++;
+		gameCamera.method301(17);
+		modelUpdatingTimer++;
+		if (modelUpdatingTimer > 5) {
+			modelUpdatingTimer = 0;
+			modelFireLightningSpellNumber = (modelFireLightningSpellNumber + 1) % 3;
+			modelTorchNumber = (modelTorchNumber + 1) % 4;
+			modelClawSpellNumber = (modelClawSpellNumber + 1) % 5;
+		}
+		for (int k2 = 0; k2 < objectCount; k2++) {
+			int l3 = objectX[k2];
+			int l4 = objectY[k2];
+			if (l3 >= 0 && l4 >= 0 && l3 < 96 && l4 < 96
+					&& objectType[k2] == 74)
+				objectModelArray[k2].method188(1, 0, 0);
+		}
 
-			for (int i4 = 0; i4 < anInt892; i4++) {
-				anIntArray923[i4]++;
-				if (anIntArray923[i4] > 50) {
-					anInt892--;
-					for (int i5 = i4; i5 < anInt892; i5++) {
-						anIntArray944[i5] = anIntArray944[i5 + 1];
-						anIntArray757[i5] = anIntArray757[i5 + 1];
-						anIntArray923[i5] = anIntArray923[i5 + 1];
-						anIntArray782[i5] = anIntArray782[i5 + 1];
-					}
-
+		for (int i4 = 0; i4 < anInt892; i4++) {
+			anIntArray923[i4]++;
+			if (anIntArray923[i4] > 50) {
+				anInt892--;
+				for (int i5 = i4; i5 < anInt892; i5++) {
+					anIntArray944[i5] = anIntArray944[i5 + 1];
+					anIntArray757[i5] = anIntArray757[i5 + 1];
+					anIntArray923[i5] = anIntArray923[i5 + 1];
+					anIntArray782[i5] = anIntArray782[i5 + 1];
 				}
-			}
 
-	}//command == 11
+			}
+		}
+
+	}// command == 11
+
 	public static HashMap<String, File> ctfsounds = new HashMap<String, File>();
+
 	private final void loadSounds() {
 		try {
 			drawDownloadProgress("Unpacking Sound effects", 90, false);
 			sounds = load("sounds1.mem");
 			audioReader = new AudioReader();
-			// CTF sounds
-			String[] names = {"blueflagreturn", "bluescores","enemyhasyourflag","countdown",
-					"firstblood","humuliation","preparetofight","rampage","redflagreturn",
-					"redscores","unstoppable","youhavetheflag","yourteamhasflag","youwin"};
-
-			for(final String s : names) {
-				new Thread(new Runnable() {
-					public void run() {
-						ctfsounds.put(s, mudclient.loadCachedFile(s + ".mp3"));
-					}
-				}).start();		
-			}
 			return;
 		} catch (Throwable throwable) {
 			System.out.println("Unable to init sounds:" + throwable);
@@ -6004,8 +6210,8 @@ public class mudclient extends GameWindowMiddleMan {
 	}
 
 	private final void drawDuelConfirmWindow() {
-		int byte0 = 22+xAddition;
-		int byte1 = 36+yAddition;
+		int byte0 = 22 + xAddition;
+		int byte1 = 36 + yAddition;
 		gameGraphics.drawBox(byte0, byte1, 468, 16, 192);
 		int i = 0x989898;
 		gameGraphics.drawBoxAlpha(byte0, byte1 + 16, 468, 246, i, 160);
@@ -6016,7 +6222,7 @@ public class mudclient extends GameWindowMiddleMan {
 				0xffff00);
 		for (int j = 0; j < duelConfirmMyItemCount; j++) {
 			String s = EntityHandler.getItemDef(duelConfirmMyItems[j])
-			.getName();
+					.getName();
 			if (EntityHandler.getItemDef(duelConfirmMyItems[j]).isStackable())
 				s = s + " x " + method74(duelConfirmMyItemsCount[j]);
 			gameGraphics.drawText(s, byte0 + 117, byte1 + 42 + j * 12, 1,
@@ -6030,7 +6236,7 @@ public class mudclient extends GameWindowMiddleMan {
 				byte1 + 30, 1, 0xffff00);
 		for (int k = 0; k < duelConfirmOpponentItemCount; k++) {
 			String s1 = EntityHandler.getItemDef(duelConfirmOpponentItems[k])
-			.getName();
+					.getName();
 			if (EntityHandler.getItemDef(duelConfirmOpponentItems[k])
 					.isStackable())
 				s1 = s1 + " x " + method74(duelConfirmOpponentItemsCount[k]);
@@ -6132,57 +6338,54 @@ public class mudclient extends GameWindowMiddleMan {
 
 	}
 
-        private final void makeDPSMenu() {
-                drawPointsScreen = new Menu(gameGraphics, 100);
+	private final void makeDPSMenu() {
+		drawPointsScreen = new Menu(gameGraphics, 100);
 		final Menu dPS = drawPointsScreen;
-                dPS.drawText(256, 10, "Please select your points",
-                                4, true);
-                int i = 140;
-                int j = 34;
-                i += 116;
-                j -= 10;
-                byte byte0 = 54;
-                j += 145;
-                dPS.method157(i - byte0, j, 53, 41);
-                dPS.drawText(i - byte0, j - 8, "Str", 1, true);
-                dPS.method158(i - byte0 - 40, j, SPRITE_UTIL_START + 7);
-                strDownButton = dPS.makeButton(i - byte0 - 40, j, 20, 20);
-                dPS.method158((i - byte0) + 40, j, SPRITE_UTIL_START + 6);
-                strUpButton = dPS.makeButton((i - byte0) + 40, j, 20, 20);
-                dPS.method157(i + byte0, j, 53, 41);
-                dPS.drawText(i + byte0, j - 8, "Atk", 1, true);
-                dPS.method158((i + byte0) - 40, j, SPRITE_UTIL_START + 7);
-                atkDownButton = dPS.makeButton((i + byte0) - 40, j, 20, 20);
-                dPS.method158(i + byte0 + 40, j, SPRITE_UTIL_START + 6);
-                atkUpButton = dPS.makeButton(i + byte0 + 40, j, 20, 20);
+		dPS.drawText(256, 10, "Please select your points", 4, true);
+		int i = 140;
+		int j = 34;
+		i += 116;
+		j -= 10;
+		byte byte0 = 54;
+		j += 145;
+		dPS.method157(i - byte0, j, 53, 41);
+		dPS.drawText(i - byte0, j - 8, "Str", 1, true);
+		dPS.method158(i - byte0 - 40, j, SPRITE_UTIL_START + 7);
+		strDownButton = dPS.makeButton(i - byte0 - 40, j, 20, 20);
+		dPS.method158((i - byte0) + 40, j, SPRITE_UTIL_START + 6);
+		strUpButton = dPS.makeButton((i - byte0) + 40, j, 20, 20);
+		dPS.method157(i + byte0, j, 53, 41);
+		dPS.drawText(i + byte0, j - 8, "Atk", 1, true);
+		dPS.method158((i + byte0) - 40, j, SPRITE_UTIL_START + 7);
+		atkDownButton = dPS.makeButton((i + byte0) - 40, j, 20, 20);
+		dPS.method158(i + byte0 + 40, j, SPRITE_UTIL_START + 6);
+		atkUpButton = dPS.makeButton(i + byte0 + 40, j, 20, 20);
 		j += 50;
-                dPS.method157(i - byte0, j, 53, 41);
-                dPS.drawText(i - byte0, j - 8, "Def", 1, true);
-                dPS.method158(i - byte0 - 40, j, SPRITE_UTIL_START + 7);
-                defDownButton = dPS.makeButton(i - byte0 - 40, j, 20, 20);
-                dPS.method158((i - byte0) + 40, j, SPRITE_UTIL_START + 6);
-                defUpButton = dPS.makeButton((i - byte0) + 40, j, 20, 20);
-                dPS.method157(i + byte0, j, 53, 41);
-                dPS.drawText(i + byte0, j - 8, "Range", 1, true);
-                dPS.method158((i + byte0) - 40, j, SPRITE_UTIL_START + 7);
-                rangeDownButton = dPS.makeButton((i + byte0) - 40, j, 20, 20);
-                dPS.method158(i + byte0 + 40, j, SPRITE_UTIL_START + 6);
-                rangeUpButton = dPS.makeButton(i + byte0 + 40, j, 20, 20);
+		dPS.method157(i - byte0, j, 53, 41);
+		dPS.drawText(i - byte0, j - 8, "Def", 1, true);
+		dPS.method158(i - byte0 - 40, j, SPRITE_UTIL_START + 7);
+		defDownButton = dPS.makeButton(i - byte0 - 40, j, 20, 20);
+		dPS.method158((i - byte0) + 40, j, SPRITE_UTIL_START + 6);
+		defUpButton = dPS.makeButton((i - byte0) + 40, j, 20, 20);
+		dPS.method157(i + byte0, j, 53, 41);
+		dPS.drawText(i + byte0, j - 8, "Range", 1, true);
+		dPS.method158((i + byte0) - 40, j, SPRITE_UTIL_START + 7);
+		rangeDownButton = dPS.makeButton((i + byte0) - 40, j, 20, 20);
+		dPS.method158(i + byte0 + 40, j, SPRITE_UTIL_START + 6);
+		rangeUpButton = dPS.makeButton(i + byte0 + 40, j, 20, 20);
 		j += 50;
-               	dPS.method157(i - byte0, j, 53, 41);
-                dPS.drawText(i - byte0, j - 8, "Magic", 1, true);
-                dPS.method158(i - byte0 - 40, j, SPRITE_UTIL_START + 7);
-                magDownButton = dPS.makeButton(i - byte0 - 40, j, 20, 20);
-                dPS.method158((i - byte0) + 40, j, SPRITE_UTIL_START + 6);
-                magUpButton = dPS.makeButton((i - byte0) + 40, j, 20, 20);
-                j += 82;
-                j -= 35;
-                dPS.drawBox(i, j, 200, 30);
-                dPS.drawText(i, j, "Accept", 4, false);
-                dPSAcceptButton = dPS.makeButton(i, j, 200, 30);
-        }
-
-
+		dPS.method157(i - byte0, j, 53, 41);
+		dPS.drawText(i - byte0, j - 8, "Magic", 1, true);
+		dPS.method158(i - byte0 - 40, j, SPRITE_UTIL_START + 7);
+		magDownButton = dPS.makeButton(i - byte0 - 40, j, 20, 20);
+		dPS.method158((i - byte0) + 40, j, SPRITE_UTIL_START + 6);
+		magUpButton = dPS.makeButton((i - byte0) + 40, j, 20, 20);
+		j += 82;
+		j -= 35;
+		dPS.drawBox(i, j, 200, 30);
+		dPS.drawText(i, j, "Accept", 4, false);
+		dPSAcceptButton = dPS.makeButton(i, j, 200, 30);
+	}
 
 	private final void makeCharacterDesignMenu() {
 		characterDesignMenu = new Menu(gameGraphics, 100);
@@ -6281,29 +6484,31 @@ public class mudclient extends GameWindowMiddleMan {
 			showAbuseWindow = 0;
 			return;
 		}
-		gameGraphics.drawBox(56+xAddition, 130+yAddition, 400, 100, 0);
-		gameGraphics.drawBoxEdge(56+xAddition, 130+yAddition, 400, 100, 0xffffff);
-		int i = 160+yAddition;
+		gameGraphics.drawBox(56 + xAddition, 130 + yAddition, 400, 100, 0);
+		gameGraphics.drawBoxEdge(56 + xAddition, 130 + yAddition, 400, 100,
+				0xffffff);
+		int i = 160 + yAddition;
 		gameGraphics.drawText(
 				"Now type the name of the offending player, and press enter",
-				256+xAddition, i, 1, 0xffff00);
+				256 + xAddition, i, 1, 0xffff00);
 		i += 18;
-		gameGraphics.drawText("Name: " + super.inputText + "*", 256+xAddition, i, 4,
-				0xffffff);
-		i = 222+yAddition;
+		gameGraphics.drawText("Name: " + super.inputText + "*",
+				256 + xAddition, i, 4, 0xffffff);
+		i = 222 + yAddition;
 		int j = 0xffffff;
-		if (super.mouseX > 196+xAddition && super.mouseX < 316+xAddition && super.mouseY > i - 13
-				&& super.mouseY < i + 2) {
+		if (super.mouseX > 196 + xAddition && super.mouseX < 316 + xAddition
+				&& super.mouseY > i - 13 && super.mouseY < i + 2) {
 			j = 0xffff00;
 			if (mouseButtonClick == 1) {
 				mouseButtonClick = 0;
 				showAbuseWindow = 0;
 			}
 		}
-		gameGraphics.drawText("Click here to cancel", 256+xAddition, i, 1, j);
+		gameGraphics.drawText("Click here to cancel", 256 + xAddition, i, 1, j);
 		if (mouseButtonClick == 1
-				&& (super.mouseX < 56+xAddition || super.mouseX > 456+xAddition
-						|| super.mouseY < 130+yAddition || super.mouseY > 230+yAddition)) {
+				&& (super.mouseX < 56 + xAddition
+						|| super.mouseX > 456 + xAddition
+						|| super.mouseY < 130 + yAddition || super.mouseY > 230 + yAddition)) {
 			mouseButtonClick = 0;
 			showAbuseWindow = 0;
 		}
@@ -6312,7 +6517,7 @@ public class mudclient extends GameWindowMiddleMan {
 	public final void displayMessage(String message, int type, int status) {
 		if (type == 2 || type == 4 || type == 6) {
 			for (; message.length() > 5 && message.charAt(0) == '@'
-				&& message.charAt(4) == '@'; message = message.substring(5))
+					&& message.charAt(4) == '@'; message = message.substring(5))
 				;
 		}
 		if (message.startsWith("%", 0)) {
@@ -6350,7 +6555,7 @@ public class mudclient extends GameWindowMiddleMan {
 			gameMenu.addString(messagesHandleType6, message, false);
 			return;
 		}
-		//MessageQueue
+		// MessageQueue
 		if (status == 33) {
 			MessageQueue.getQueue();
 			MessageQueue.addMessage(new Message(message, true));
@@ -6428,7 +6633,7 @@ public class mudclient extends GameWindowMiddleMan {
 				model.anInt257 = i;
 				objectModelArray[i] = model;
 			} catch (Exception e) {
-				//e.printStackTrace();
+				// e.printStackTrace();
 			}
 		}
 	}
@@ -6487,8 +6692,8 @@ public class mudclient extends GameWindowMiddleMan {
 		if (mouseButtonClick != 0 && itemIncrement == 0)
 			itemIncrement = 1;
 		if (itemIncrement > 0) {
-			int i = super.mouseX - 22-xAddition;
-			int j = super.mouseY - 36-yAddition;
+			int i = super.mouseX - 22 - xAddition;
+			int j = super.mouseY - 36 - yAddition;
 			if (i >= 0 && j >= 0 && i < 468 && j < 262) {
 				if (i > 216 && j > 30 && i < 462 && j < 235) {
 					int k = (i - 217) / 49 + ((j - 31) / 34) * 5;
@@ -6523,7 +6728,7 @@ public class mudclient extends GameWindowMiddleMan {
 							for (int j4 = 0; j4 < tradeMyItemCount; j4++) {
 								super.streamClass.add2ByteInt(tradeMyItems[j4]);
 								super.streamClass
-								.add4ByteInt(tradeMyItemsCount[j4]);
+										.add4ByteInt(tradeMyItemsCount[j4]);
 							}
 							super.streamClass.formatPacket();
 							tradeOtherAccepted = false;
@@ -6556,7 +6761,7 @@ public class mudclient extends GameWindowMiddleMan {
 						for (int i3 = 0; i3 < tradeMyItemCount; i3++) {
 							super.streamClass.add2ByteInt(tradeMyItems[i3]);
 							super.streamClass
-							.add4ByteInt(tradeMyItemsCount[i3]);
+									.add4ByteInt(tradeMyItemsCount[i3]);
 						}
 
 						super.streamClass.formatPacket();
@@ -6584,8 +6789,8 @@ public class mudclient extends GameWindowMiddleMan {
 		}
 		if (!showTradeWindow)
 			return;
-		int byte0 = 22+xAddition;
-		int byte1 = 36+yAddition;
+		int byte0 = 22 + xAddition;
+		int byte1 = 36 + yAddition;
 		gameGraphics.drawBox(byte0, byte1, 468, 12, 192);
 		int i1 = 0x989898;
 		gameGraphics.drawBoxAlpha(byte0, byte1 + 12, 468, 18, i1, 160);
@@ -6613,7 +6818,7 @@ public class mudclient extends GameWindowMiddleMan {
 				gameGraphics.drawLineY(byte0 + 8 + k4 * 49, byte1 + 30, 103, 0);
 			if (k4 < 5)
 				gameGraphics
-				.drawLineY(byte0 + 8 + k4 * 49, byte1 + 155, 103, 0);
+						.drawLineY(byte0 + 8 + k4 * 49, byte1 + 155, 103, 0);
 			gameGraphics.drawLineY(byte0 + 216 + k4 * 49, byte1 + 30, 205, 0);
 		}
 
@@ -6646,9 +6851,10 @@ public class mudclient extends GameWindowMiddleMan {
 			int i5 = 217 + byte0 + (l4 % 5) * 49;
 			int k5 = 31 + byte1 + (l4 / 5) * 34;
 			gameGraphics.spriteClip4(i5, k5, 48, 32, SPRITE_ITEM_START
-					+ EntityHandler.getItemDef(getInventoryItems()[l4]).getSprite(),
+					+ EntityHandler.getItemDef(getInventoryItems()[l4])
+							.getSprite(),
 					EntityHandler.getItemDef(getInventoryItems()[l4])
-					.getPictureMask(), 0, 0, false);
+							.getPictureMask(), 0, 0, false);
 			if (EntityHandler.getItemDef(getInventoryItems()[l4]).isStackable())
 				gameGraphics.drawString(
 						String.valueOf(inventoryItemsCount[l4]), i5 + 1,
@@ -6659,43 +6865,49 @@ public class mudclient extends GameWindowMiddleMan {
 			int l5 = 9 + byte0 + (j5 % 4) * 49;
 			int j6 = 31 + byte1 + (j5 / 4) * 34;
 			gameGraphics
-			.spriteClip4(l5, j6, 48, 32, SPRITE_ITEM_START
-					+ EntityHandler.getItemDef(tradeMyItems[j5])
-					.getSprite(), EntityHandler.getItemDef(
-							tradeMyItems[j5]).getPictureMask(), 0, 0, false);
+					.spriteClip4(l5, j6, 48, 32, SPRITE_ITEM_START
+							+ EntityHandler.getItemDef(tradeMyItems[j5])
+									.getSprite(),
+							EntityHandler.getItemDef(tradeMyItems[j5])
+									.getPictureMask(), 0, 0, false);
 			if (EntityHandler.getItemDef(tradeMyItems[j5]).isStackable())
 				gameGraphics.drawString(String.valueOf(tradeMyItemsCount[j5]),
 						l5 + 1, j6 + 10, 1, 0xffff00);
 			if (super.mouseX > l5 && super.mouseX < l5 + 48
 					&& super.mouseY > j6 && super.mouseY < j6 + 32)
-				gameGraphics.drawString(EntityHandler.getItemDef(
-						tradeMyItems[j5]).getName()
-						+ ": @whi@"
-						+ EntityHandler.getItemDef(tradeMyItems[j5])
-						.getDescription(), byte0 + 8, byte1 + 273, 1,
-						0xffff00);
+				gameGraphics.drawString(
+						EntityHandler.getItemDef(tradeMyItems[j5]).getName()
+								+ ": @whi@"
+								+ EntityHandler.getItemDef(tradeMyItems[j5])
+										.getDescription(), byte0 + 8,
+						byte1 + 273, 1, 0xffff00);
 		}
 
 		for (int i6 = 0; i6 < tradeOtherItemCount; i6++) {
 			int k6 = 9 + byte0 + (i6 % 4) * 49;
 			int l6 = 156 + byte1 + (i6 / 4) * 34;
-			gameGraphics.spriteClip4(k6, l6, 48, 32,
+			gameGraphics.spriteClip4(
+					k6,
+					l6,
+					48,
+					32,
 					SPRITE_ITEM_START
-					+ EntityHandler.getItemDef(tradeOtherItems[i6])
-					.getSprite(), EntityHandler.getItemDef(
-							tradeOtherItems[i6]).getPictureMask(), 0, 0, false);
+							+ EntityHandler.getItemDef(tradeOtherItems[i6])
+									.getSprite(),
+					EntityHandler.getItemDef(tradeOtherItems[i6])
+							.getPictureMask(), 0, 0, false);
 			if (EntityHandler.getItemDef(tradeOtherItems[i6]).isStackable())
-				gameGraphics.drawString(String
-						.valueOf(tradeOtherItemsCount[i6]), k6 + 1, l6 + 10, 1,
-						0xffff00);
+				gameGraphics.drawString(
+						String.valueOf(tradeOtherItemsCount[i6]), k6 + 1,
+						l6 + 10, 1, 0xffff00);
 			if (super.mouseX > k6 && super.mouseX < k6 + 48
 					&& super.mouseY > l6 && super.mouseY < l6 + 32)
-				gameGraphics.drawString(EntityHandler.getItemDef(
-						tradeOtherItems[i6]).getName()
-						+ ": @whi@"
-						+ EntityHandler.getItemDef(tradeOtherItems[i6])
-						.getDescription(), byte0 + 8, byte1 + 273, 1,
-						0xffff00);
+				gameGraphics.drawString(
+						EntityHandler.getItemDef(tradeOtherItems[i6]).getName()
+								+ ": @whi@"
+								+ EntityHandler.getItemDef(tradeOtherItems[i6])
+										.getDescription(), byte0 + 8,
+						byte1 + 273, 1, 0xffff00);
 		}
 
 	}
@@ -6707,22 +6919,22 @@ public class mudclient extends GameWindowMiddleMan {
 			if (i == 1
 					&& ((engineHandle.walkableValue[j][k - l] & 0x80) == 128
 							|| (engineHandle.walkableValue[j - l][k] & 0x80) == 128 || (engineHandle.walkableValue[j
-							                                                                                       - l][k - l] & 0x80) == 128))
+							- l][k - l] & 0x80) == 128))
 				return false;
 			if (i == 3
 					&& ((engineHandle.walkableValue[j][k + l] & 0x80) == 128
 							|| (engineHandle.walkableValue[j - l][k] & 0x80) == 128 || (engineHandle.walkableValue[j
-							                                                                                       - l][k + l] & 0x80) == 128))
+							- l][k + l] & 0x80) == 128))
 				return false;
 			if (i == 5
 					&& ((engineHandle.walkableValue[j][k + l] & 0x80) == 128
 							|| (engineHandle.walkableValue[j + l][k] & 0x80) == 128 || (engineHandle.walkableValue[j
-							                                                                                       + l][k + l] & 0x80) == 128))
+							+ l][k + l] & 0x80) == 128))
 				return false;
 			if (i == 7
 					&& ((engineHandle.walkableValue[j][k - l] & 0x80) == 128
 							|| (engineHandle.walkableValue[j + l][k] & 0x80) == 128 || (engineHandle.walkableValue[j
-							                                                                                       + l][k - l] & 0x80) == 128))
+							+ l][k - l] & 0x80) == 128))
 				return false;
 			if (i == 0 && (engineHandle.walkableValue[j][k - l] & 0x80) == 128)
 				return false;
@@ -6758,37 +6970,38 @@ public class mudclient extends GameWindowMiddleMan {
 	protected final void handleIncomingPacket(int command, int length,
 			byte data[]) {
 		try {
-			if(command == 254) {
-				int bar = DataOperations.getUnsigned4Bytes(data,1);
-				//System.out.println(bar);
-				if(bar == -1) {
+			if (command == 254) {
+				int bar = DataOperations.getUnsigned4Bytes(data, 1);
+				// System.out.println(bar);
+				if (bar == -1) {
 					smithingscreen.isVisible = false;
-				} 
-				else {
+				} else {
 					SmithingScreen.changeItems(smithingscreen, bar);
 					smithingscreen.isVisible = true;
 				}
 			}
 			if (command == 231) {
-				//PS = DataOperations.getUnsigned4Bytes(data, 1);
-                return;
-            }
+				// PS = DataOperations.getUnsigned4Bytes(data, 1);
+				return;
+			}
 			if (command == 233) {
-				questPoints =  DataOperations.getUnsignedByte(data[1]);
+				questPoints = DataOperations.getUnsignedByte(data[1]);
 				int k = DataOperations.getUnsignedByte(data[2]);
 				int r = 3;
 				newQuestNames = new String[k];
 				questStage = new byte[k];
-				for(int i=0; i < k; i++) {
+				for (int i = 0; i < k; i++) {
 					int uid = DataOperations.getUnsignedByte(data[r]);
 					r++;
 					newQuestNames[i] = questName[uid];
 
-					questStage[i] = (byte)DataOperations.getUnsignedByte(data[r]);
-					//System.out.println(newQuestNames[i] + " " + questStage[i]);
+					questStage[i] = (byte) DataOperations
+							.getUnsignedByte(data[r]);
+					// System.out.println(newQuestNames[i] + " " +
+					// questStage[i]);
 					r++;
 				}
-			}//command == 177
+			}// command == 177
 
 			if (command == 110) {
 				int i = 1;
@@ -6816,7 +7029,8 @@ public class mudclient extends GameWindowMiddleMan {
 				int mobSprite = DataOperations.getIntFromByteArray(data,
 						currentOffset, 4);
 				currentOffset += 4;
-				boolean sectionLoaded = loadSection(getSectionX(), getSectionY());
+				boolean sectionLoaded = loadSection(getSectionX(),
+						getSectionY());
 				setSectionX(getSectionX() - getAreaX());
 				setSectionY(getSectionY() - getAreaY());
 				int mapEnterX = getSectionX() * magicLoc + 64;
@@ -6846,7 +7060,7 @@ public class mudclient extends GameWindowMiddleMan {
 						currentOffset++;
 						if (waypointsLeft == 0) {
 							int currentNextSprite = DataOperations
-							.getIntFromByteArray(data, currentOffset, 3); // 3
+									.getIntFromByteArray(data, currentOffset, 3); // 3
 							currentOffset += 3;
 							int currentWaypoint = lastMob.waypointCurrent;
 							int newWaypointX = lastMob.waypointsX[currentWaypoint];
@@ -6873,7 +7087,7 @@ public class mudclient extends GameWindowMiddleMan {
 							lastMob.waypointsY[currentWaypoint] = newWaypointY;
 						} else {
 							int needsNextSprite = DataOperations
-							.getIntFromByteArray(data, currentOffset, 4);
+									.getIntFromByteArray(data, currentOffset, 4);
 							currentOffset += 4;
 							if ((needsNextSprite & 0xc) == 12) {
 								continue;
@@ -6939,25 +7153,25 @@ public class mudclient extends GameWindowMiddleMan {
 					if (DataOperations.getUnsignedByte(data[l]) == 255) { // ???
 						int newCount = 0;
 						int newSectionX = getSectionX() + data[l + 1] >> 3;
-				int newSectionY = getSectionY() + data[l + 2] >> 3;
-					l += 3;
-					for (int groundItem = 0; groundItem < groundItemCount; groundItem++) {
-						int newX = (groundItemX[groundItem] >> 3)
-						- newSectionX;
-						int newY = (groundItemY[groundItem] >> 3)
-						- newSectionY;
-						if (newX != 0 || newY != 0) {
-							if (groundItem != newCount) {
-								groundItemX[newCount] = groundItemX[groundItem];
-								groundItemY[newCount] = groundItemY[groundItem];
-								groundItemType[newCount] = groundItemType[groundItem];
-								groundItemObjectVar[newCount] = groundItemObjectVar[groundItem];
+						int newSectionY = getSectionY() + data[l + 2] >> 3;
+						l += 3;
+						for (int groundItem = 0; groundItem < groundItemCount; groundItem++) {
+							int newX = (groundItemX[groundItem] >> 3)
+									- newSectionX;
+							int newY = (groundItemY[groundItem] >> 3)
+									- newSectionY;
+							if (newX != 0 || newY != 0) {
+								if (groundItem != newCount) {
+									groundItemX[newCount] = groundItemX[groundItem];
+									groundItemY[newCount] = groundItemY[groundItem];
+									groundItemType[newCount] = groundItemType[groundItem];
+									groundItemObjectVar[newCount] = groundItemObjectVar[groundItem];
+								}
+								newCount++;
 							}
-							newCount++;
 						}
-					}
 
-					groundItemCount = newCount;
+						groundItemCount = newCount;
 					} else {
 						int i8 = DataOperations.getUnsigned2Bytes(data, l);
 						l += 2;
@@ -6972,8 +7186,8 @@ public class mudclient extends GameWindowMiddleMan {
 								if (objectX[k23] != k14 || objectY[k23] != j19)
 									continue;
 								groundItemObjectVar[groundItemCount] = EntityHandler
-								.getObjectDef(objectType[k23])
-								.getGroundItemVar();
+										.getObjectDef(objectType[k23])
+										.getGroundItemVar();
 								break;
 							}
 
@@ -7010,30 +7224,30 @@ public class mudclient extends GameWindowMiddleMan {
 					if (DataOperations.getUnsignedByte(data[i1]) == 255) {
 						int j8 = 0;
 						int l14 = getSectionX() + data[i1 + 1] >> 3;
-				int k19 = getSectionY() + data[i1 + 2] >> 3;
-							i1 += 3;
-							for (int i24 = 0; i24 < objectCount; i24++) {
-								int l26 = (objectX[i24] >> 3) - l14;
-								int k29 = (objectY[i24] >> 3) - k19;
-								if (l26 != 0 || k29 != 0) {
-									if (i24 != j8) {
-										objectModelArray[j8] = objectModelArray[i24];
-										objectModelArray[j8].anInt257 = j8;
-										objectX[j8] = objectX[i24];
-										objectY[j8] = objectY[i24];
-										objectType[j8] = objectType[i24];
-										objectID[j8] = objectID[i24];
-									}
-									j8++;
-								} else {
-									gameCamera.removeModel(objectModelArray[i24]);
-									engineHandle.updateObject(objectX[i24],
-											objectY[i24], objectType[i24],
-											objectID[i24]);
+						int k19 = getSectionY() + data[i1 + 2] >> 3;
+						i1 += 3;
+						for (int i24 = 0; i24 < objectCount; i24++) {
+							int l26 = (objectX[i24] >> 3) - l14;
+							int k29 = (objectY[i24] >> 3) - k19;
+							if (l26 != 0 || k29 != 0) {
+								if (i24 != j8) {
+									objectModelArray[j8] = objectModelArray[i24];
+									objectModelArray[j8].anInt257 = j8;
+									objectX[j8] = objectX[i24];
+									objectY[j8] = objectY[i24];
+									objectType[j8] = objectType[i24];
+									objectID[j8] = objectID[i24];
 								}
+								j8++;
+							} else {
+								gameCamera.removeModel(objectModelArray[i24]);
+								engineHandle.updateObject(objectX[i24],
+										objectY[i24], objectType[i24],
+										objectID[i24]);
 							}
+						}
 
-							objectCount = j8;
+						objectCount = j8;
 					} else {
 						int k8 = DataOperations.getUnsigned2Bytes(data, i1);
 						i1 += 2;
@@ -7068,11 +7282,11 @@ public class mudclient extends GameWindowMiddleMan {
 							if (l29 == 0 || l29 == 4) {
 								i34 = EntityHandler.getObjectDef(k8).getWidth();
 								j37 = EntityHandler.getObjectDef(k8)
-								.getHeight();
+										.getHeight();
 							} else {
 								j37 = EntityHandler.getObjectDef(k8).getWidth();
 								i34 = EntityHandler.getObjectDef(k8)
-								.getHeight();
+										.getHeight();
 							}
 							int j40 = ((i15 + i15 + i34) * magicLoc) / 2;
 							int i42 = ((l19 + l19 + j37) * magicLoc) / 2;
@@ -7096,7 +7310,7 @@ public class mudclient extends GameWindowMiddleMan {
 					}
 
 				return;
-			}//command == 48
+			}// command == 48
 			if (command == 114) {
 				int invOffset = 1;
 				inventoryCount = data[invOffset++] & 0xff;
@@ -7152,11 +7366,11 @@ public class mudclient extends GameWindowMiddleMan {
 						mobUpdateOffset += byte7;
 					} else if (mobUpdateType == 2) { // Someone getting hit.
 						int j30 = DataOperations
-						.getUnsignedByte(data[mobUpdateOffset++]);
+								.getUnsignedByte(data[mobUpdateOffset++]);
 						int hits = DataOperations
-						.getUnsignedByte(data[mobUpdateOffset++]);
+								.getUnsignedByte(data[mobUpdateOffset++]);
 						int hitsBase = DataOperations
-						.getUnsignedByte(data[mobUpdateOffset++]);
+								.getUnsignedByte(data[mobUpdateOffset++]);
 						if (mob != null) {
 							mob.anInt164 = j30;
 							mob.hitPointsCurrent = hits;
@@ -7199,19 +7413,19 @@ public class mudclient extends GameWindowMiddleMan {
 					} else if (mobUpdateType == 5) { // Apperance update
 						if (mob != null) {
 							mob.mobIntUnknown = DataOperations
-							.getUnsigned2Bytes(data, mobUpdateOffset);
+									.getUnsigned2Bytes(data, mobUpdateOffset);
 							mobUpdateOffset += 2;
 							mob.nameLong = DataOperations.getUnsigned8Bytes(
 									data, mobUpdateOffset);
 							mobUpdateOffset += 8;
 							mob.name = DataOperations
-							.longToString(mob.nameLong);
+									.longToString(mob.nameLong);
 							int i31 = DataOperations
-							.getUnsignedByte(data[mobUpdateOffset]);
+									.getUnsignedByte(data[mobUpdateOffset]);
 							mobUpdateOffset++;
 							for (int i35 = 0; i35 < i31; i35++) {
 								mob.animationCount[i35] = DataOperations
-								.getUnsignedByte(data[mobUpdateOffset]);
+										.getUnsignedByte(data[mobUpdateOffset]);
 								mobUpdateOffset++;
 							}
 
@@ -7228,7 +7442,7 @@ public class mudclient extends GameWindowMiddleMan {
 						} else {
 							mobUpdateOffset += 14;
 							int j31 = DataOperations
-							.getUnsignedByte(data[mobUpdateOffset]);
+									.getUnsignedByte(data[mobUpdateOffset]);
 							mobUpdateOffset += j31 + 1;
 						}
 					} else if (mobUpdateType == 6) { // private player talking
@@ -7258,31 +7472,31 @@ public class mudclient extends GameWindowMiddleMan {
 					if (DataOperations.getUnsignedByte(data[l1]) == 255) {
 						int j9 = 0;
 						int l15 = getSectionX() + data[l1 + 1] >> 3;
-				int j20 = getSectionY() + data[l1 + 2] >> 3;
-							l1 += 3;
-							for (int currentDoor = 0; currentDoor < doorCount; currentDoor++) {
-								int j27 = (doorX[currentDoor] >> 3) - l15;
-								int k31 = (doorY[currentDoor] >> 3) - j20;
-								if (j27 != 0 || k31 != 0) {
-									if (currentDoor != j9) {
-										doorModel[j9] = doorModel[currentDoor];
-										doorModel[j9].anInt257 = j9 + 10000;
-										doorX[j9] = doorX[currentDoor];
-										doorY[j9] = doorY[currentDoor];
-										doorDirection[j9] = doorDirection[currentDoor];
-										doorType[j9] = doorType[currentDoor];
-									}
-									j9++;
-								} else {
-									gameCamera.removeModel(doorModel[currentDoor]);
-									engineHandle.updateDoor(doorX[currentDoor],
-											doorY[currentDoor],
-											doorDirection[currentDoor],
-											doorType[currentDoor]);
+						int j20 = getSectionY() + data[l1 + 2] >> 3;
+						l1 += 3;
+						for (int currentDoor = 0; currentDoor < doorCount; currentDoor++) {
+							int j27 = (doorX[currentDoor] >> 3) - l15;
+							int k31 = (doorY[currentDoor] >> 3) - j20;
+							if (j27 != 0 || k31 != 0) {
+								if (currentDoor != j9) {
+									doorModel[j9] = doorModel[currentDoor];
+									doorModel[j9].anInt257 = j9 + 10000;
+									doorX[j9] = doorX[currentDoor];
+									doorY[j9] = doorY[currentDoor];
+									doorDirection[j9] = doorDirection[currentDoor];
+									doorType[j9] = doorType[currentDoor];
 								}
+								j9++;
+							} else {
+								gameCamera.removeModel(doorModel[currentDoor]);
+								engineHandle.updateDoor(doorX[currentDoor],
+										doorY[currentDoor],
+										doorDirection[currentDoor],
+										doorType[currentDoor]);
 							}
+						}
 
-							doorCount = j9;
+						doorCount = j9;
 					} else {
 						int k9 = DataOperations.getUnsigned2Bytes(data, l1);
 						l1 += 2;
@@ -7346,7 +7560,7 @@ public class mudclient extends GameWindowMiddleMan {
 						newNpcOffset++;
 						if (i32 == 0) {
 							int nextSprite = DataOperations
-							.getIntFromByteArray(data, newNpcOffset, 3);
+									.getIntFromByteArray(data, newNpcOffset, 3);
 							newNpcOffset += 3;
 							int waypointCurrent = newNPC.waypointCurrent;
 							int waypointX = newNPC.waypointsX[waypointCurrent];
@@ -7369,7 +7583,7 @@ public class mudclient extends GameWindowMiddleMan {
 							newNPC.waypointsY[waypointCurrent] = waypointY;
 						} else {
 							int nextSpriteOffset = DataOperations
-							.getIntFromByteArray(data, newNpcOffset, 4);
+									.getIntFromByteArray(data, newNpcOffset, 4);
 							newNpcOffset += 4;
 							if ((nextSpriteOffset & 0xc) == 12) {
 								continue;
@@ -7431,7 +7645,7 @@ public class mudclient extends GameWindowMiddleMan {
 							if (k32 == ourPlayer.serverIndex)
 								displayMessage("@yel@"
 										+ EntityHandler.getNpcDef(mob_2.type)
-										.getName() + ": "
+												.getName() + ": "
 										+ mob_2.lastMessage, 5, 0);
 						}
 						i10 += byte9;
@@ -7456,12 +7670,12 @@ public class mudclient extends GameWindowMiddleMan {
 			if (command == 223) {
 				showQuestionMenu = true;
 				int newQuestionMenuCount = DataOperations
-				.getUnsignedByte(data[1]);
+						.getUnsignedByte(data[1]);
 				questionMenuCount = newQuestionMenuCount;
 				int newQuestionMenuOffset = 2;
 				for (int l16 = 0; l16 < newQuestionMenuCount; l16++) {
 					int newQuestionMenuQuestionLength = DataOperations
-					.getUnsignedByte(data[newQuestionMenuOffset]);
+							.getUnsignedByte(data[newQuestionMenuOffset]);
 					newQuestionMenuOffset++;
 					questionMenuAnswer[l16] = new String(data,
 							newQuestionMenuOffset,
@@ -7491,20 +7705,20 @@ public class mudclient extends GameWindowMiddleMan {
 				int l2 = 1;
 				for (int k10 = 0; k10 < 18; k10++) {
 					playerStatCurrent[k10] = DataOperations
-					.getUnsignedByte(data[l2++]);
+							.getUnsignedByte(data[l2++]);
 				}
 				for (int i17 = 0; i17 < 18; i17++) {
 					playerStatBase[i17] = DataOperations
-					.getUnsignedByte(data[l2++]);
+							.getUnsignedByte(data[l2++]);
 				}
 				for (int k21 = 0; k21 < 18; k21++) {
 					playerStatExperience[k21] = DataOperations
-					.readInt(data, l2);
+							.readInt(data, l2);
 					l2 += 4;
 				}
 				expGained = 0;
 				return;
-			}//command == 114
+			}// command == 114
 			if (command == 177) {
 				int i3 = 1;
 				for (int x = 0; x < 6; x++) {
@@ -7522,74 +7736,74 @@ public class mudclient extends GameWindowMiddleMan {
 				int thingLength = (length - 1) / 4;
 				for (int currentThing = 0; currentThing < thingLength; currentThing++) {
 					int currentItemSectionX = getSectionX()
-					+ DataOperations.getSigned2Bytes(data,
-							1 + currentThing * 4) >> 3;
-				int currentItemSectionY = getSectionY()
-				+ DataOperations.getSigned2Bytes(data,
-						3 + currentThing * 4) >> 3;
-				int currentCount = 0;
-				for (int currentItem = 0; currentItem < groundItemCount; currentItem++) {
-					int currentItemOffsetX = (groundItemX[currentItem] >> 3)
-					- currentItemSectionX;
-					int currentItemOffsetY = (groundItemY[currentItem] >> 3)
-					- currentItemSectionY;
-					if (currentItemOffsetX != 0 || currentItemOffsetY != 0) {
-						if (currentItem != currentCount) {
-							groundItemX[currentCount] = groundItemX[currentItem];
-							groundItemY[currentCount] = groundItemY[currentItem];
-							groundItemType[currentCount] = groundItemType[currentItem];
-							groundItemObjectVar[currentCount] = groundItemObjectVar[currentItem];
+							+ DataOperations.getSigned2Bytes(data,
+									1 + currentThing * 4) >> 3;
+					int currentItemSectionY = getSectionY()
+							+ DataOperations.getSigned2Bytes(data,
+									3 + currentThing * 4) >> 3;
+					int currentCount = 0;
+					for (int currentItem = 0; currentItem < groundItemCount; currentItem++) {
+						int currentItemOffsetX = (groundItemX[currentItem] >> 3)
+								- currentItemSectionX;
+						int currentItemOffsetY = (groundItemY[currentItem] >> 3)
+								- currentItemSectionY;
+						if (currentItemOffsetX != 0 || currentItemOffsetY != 0) {
+							if (currentItem != currentCount) {
+								groundItemX[currentCount] = groundItemX[currentItem];
+								groundItemY[currentCount] = groundItemY[currentItem];
+								groundItemType[currentCount] = groundItemType[currentItem];
+								groundItemObjectVar[currentCount] = groundItemObjectVar[currentItem];
+							}
+							currentCount++;
 						}
-						currentCount++;
 					}
-				}
 
-				groundItemCount = currentCount;
-				currentCount = 0;
-				for (int j33 = 0; j33 < objectCount; j33++) {
-					int k36 = (objectX[j33] >> 3) - currentItemSectionX;
-					int l38 = (objectY[j33] >> 3) - currentItemSectionY;
-					if (k36 != 0 || l38 != 0) {
-						if (j33 != currentCount) {
-							objectModelArray[currentCount] = objectModelArray[j33];
-							objectModelArray[currentCount].anInt257 = currentCount;
-							objectX[currentCount] = objectX[j33];
-							objectY[currentCount] = objectY[j33];
-							objectType[currentCount] = objectType[j33];
-							objectID[currentCount] = objectID[j33];
+					groundItemCount = currentCount;
+					currentCount = 0;
+					for (int j33 = 0; j33 < objectCount; j33++) {
+						int k36 = (objectX[j33] >> 3) - currentItemSectionX;
+						int l38 = (objectY[j33] >> 3) - currentItemSectionY;
+						if (k36 != 0 || l38 != 0) {
+							if (j33 != currentCount) {
+								objectModelArray[currentCount] = objectModelArray[j33];
+								objectModelArray[currentCount].anInt257 = currentCount;
+								objectX[currentCount] = objectX[j33];
+								objectY[currentCount] = objectY[j33];
+								objectType[currentCount] = objectType[j33];
+								objectID[currentCount] = objectID[j33];
+							}
+							currentCount++;
+						} else {
+							gameCamera.removeModel(objectModelArray[j33]);
+							engineHandle.updateObject(objectX[j33],
+									objectY[j33], objectType[j33],
+									objectID[j33]);
 						}
-						currentCount++;
-					} else {
-						gameCamera.removeModel(objectModelArray[j33]);
-						engineHandle.updateObject(objectX[j33],
-								objectY[j33], objectType[j33],
-								objectID[j33]);
 					}
-				}
 
-				objectCount = currentCount;
-				currentCount = 0;
-				for (int l36 = 0; l36 < doorCount; l36++) {
-					int i39 = (doorX[l36] >> 3) - currentItemSectionX;
-					int j41 = (doorY[l36] >> 3) - currentItemSectionY;
-					if (i39 != 0 || j41 != 0) {
-						if (l36 != currentCount) {
-							doorModel[currentCount] = doorModel[l36];
-							doorModel[currentCount].anInt257 = currentCount + 10000;
-							doorX[currentCount] = doorX[l36];
-							doorY[currentCount] = doorY[l36];
-							doorDirection[currentCount] = doorDirection[l36];
-							doorType[currentCount] = doorType[l36];
+					objectCount = currentCount;
+					currentCount = 0;
+					for (int l36 = 0; l36 < doorCount; l36++) {
+						int i39 = (doorX[l36] >> 3) - currentItemSectionX;
+						int j41 = (doorY[l36] >> 3) - currentItemSectionY;
+						if (i39 != 0 || j41 != 0) {
+							if (l36 != currentCount) {
+								doorModel[currentCount] = doorModel[l36];
+								doorModel[currentCount].anInt257 = currentCount + 10000;
+								doorX[currentCount] = doorX[l36];
+								doorY[currentCount] = doorY[l36];
+								doorDirection[currentCount] = doorDirection[l36];
+								doorType[currentCount] = doorType[l36];
+							}
+							currentCount++;
+						} else {
+							gameCamera.removeModel(doorModel[l36]);
+							engineHandle.updateDoor(doorX[l36], doorY[l36],
+									doorDirection[l36], doorType[l36]);
 						}
-						currentCount++;
-					} else {
-						gameCamera.removeModel(doorModel[l36]);
-						engineHandle.updateDoor(doorX[l36], doorY[l36],
-								doorDirection[l36], doorType[l36]);
 					}
-				}
 
-				doorCount = currentCount;
+					doorCount = currentCount;
 				}
 
 				return;
@@ -7611,7 +7825,7 @@ public class mudclient extends GameWindowMiddleMan {
 				showCharacterLookScreen = true;
 				return;
 			}
-			
+
 			if (command == 4) {
 				int currentMob = DataOperations.getUnsigned2Bytes(data, 1);
 				if (mobArray[currentMob] != null) // todo: check what that
@@ -7637,7 +7851,7 @@ public class mudclient extends GameWindowMiddleMan {
 							data, l3);
 					l3 += 2;
 					tradeOtherItemsCount[i11] = DataOperations
-					.readInt(data, l3);
+							.readInt(data, l3);
 					l3 += 4;
 				}
 
@@ -7692,11 +7906,11 @@ public class mudclient extends GameWindowMiddleMan {
 
 							shopItems[l28] = getInventoryItems()[k33] & 0x7fff;
 							shopItemsSellPrice[l28] = EntityHandler
-							.getItemDef(shopItems[l28]).basePrice
-							- (int) (EntityHandler
-									.getItemDef(shopItems[l28]).basePrice / 2.5);
+									.getItemDef(shopItems[l28]).basePrice
+									- (int) (EntityHandler
+											.getItemDef(shopItems[l28]).basePrice / 2.5);
 							shopItemsSellPrice[l28] = shopItemsSellPrice[l28]
-							                                             - (int) (shopItemsSellPrice[l28] * 0.10);
+									- (int) (shopItemsSellPrice[l28] * 0.10);
 							shopItemCount[l28] = 0;
 							l28--;
 						}
@@ -7801,7 +8015,7 @@ public class mudclient extends GameWindowMiddleMan {
 				tradeConfirmOtherItemCount = data[k5++] & 0xff;
 				for (int l11 = 0; l11 < tradeConfirmOtherItemCount; l11++) {
 					tradeConfirmOtherItems[l11] = DataOperations
-					.getUnsigned2Bytes(data, k5);
+							.getUnsigned2Bytes(data, k5);
 					k5 += 2;
 					tradeConfirmOtherItemsCount[l11] = DataOperations.readInt(
 							data, k5);
@@ -7902,9 +8116,9 @@ public class mudclient extends GameWindowMiddleMan {
 				int idx = data[pointer++] & 0xff;
 				int oldExp = playerStatExperience[idx];
 				playerStatCurrent[idx] = DataOperations
-				.getUnsignedByte(data[pointer++]);
+						.getUnsignedByte(data[pointer++]);
 				playerStatBase[idx] = DataOperations
-				.getUnsignedByte(data[pointer++]);
+						.getUnsignedByte(data[pointer++]);
 				playerStatExperience[idx] = DataOperations.readInt(data,
 						pointer);
 				pointer += 4;
@@ -7931,10 +8145,10 @@ public class mudclient extends GameWindowMiddleMan {
 				duelConfirmOpponentItemCount = data[i7++] & 0xff;
 				for (int j13 = 0; j13 < duelConfirmOpponentItemCount; j13++) {
 					duelConfirmOpponentItems[j13] = DataOperations
-					.getUnsigned2Bytes(data, i7);
+							.getUnsigned2Bytes(data, i7);
 					i7 += 2;
 					duelConfirmOpponentItemsCount[j13] = DataOperations
-					.readInt(data, i7);
+							.readInt(data, i7);
 					i7 += 4;
 				}
 
@@ -7976,7 +8190,7 @@ public class mudclient extends GameWindowMiddleMan {
 			if (command == 248) {
 				if (!hasReceivedWelcomeBoxDetails) {
 					lastLoggedInDays = DataOperations
-					.getUnsigned2Bytes(data, 1);
+							.getUnsigned2Bytes(data, 1);
 					subscriptionLeftDays = DataOperations.getUnsigned2Bytes(
 							data, 3);
 					lastLoggedInAddress = new String(data, 5, length - 5);
@@ -8046,9 +8260,9 @@ public class mudclient extends GameWindowMiddleMan {
 				return;
 			}
 
-			//System.out.println("Bad ID: " + command + " Length: " + length);
+			// System.out.println("Bad ID: " + command + " Length: " + length);
 		} catch (Exception e) {
-			//e.printStackTrace();
+			// e.printStackTrace();
 			/*
 			 * if (handlePacketErrorCount < 3) {
 			 * super.streamClass.createPacket(156);
@@ -8059,6 +8273,7 @@ public class mudclient extends GameWindowMiddleMan {
 	}
 
 	private String sleepMessage = "";
+
 	protected final void lostConnection() {
 		systemUpdate = 0;
 		if (logoutTimeout != 0) {
@@ -8075,8 +8290,9 @@ public class mudclient extends GameWindowMiddleMan {
 		if (configSoundEffects) {
 			return;
 		}
-		audioReader.loadData(sounds, DataOperations.method358(s + ".pcm",
-				sounds), DataOperations.method359(s + ".pcm", sounds));
+		audioReader.loadData(sounds,
+				DataOperations.method358(s + ".pcm", sounds),
+				DataOperations.method359(s + ".pcm", sounds));
 	}
 
 	private final boolean sendWalkCommand(int walkSectionX, int walkSectionY,
@@ -8103,14 +8319,15 @@ public class mudclient extends GameWindowMiddleMan {
 			super.streamClass.createPacket(132);
 		super.streamClass.add2ByteInt(walkSectionX + getAreaX());
 		super.streamClass.add2ByteInt(walkSectionY + getAreaY());
-		if (coordsEqual && stepCount == -1 && (walkSectionX + getAreaX()) % 5 == 0)
+		if (coordsEqual && stepCount == -1
+				&& (walkSectionX + getAreaX()) % 5 == 0)
 			stepCount = 0;
 		for (int currentStep = stepCount; currentStep >= 0
-		&& currentStep > stepCount - 25; currentStep--) {
+				&& currentStep > stepCount - 25; currentStep--) {
 			super.streamClass
-			.addByte(sectionXArray[currentStep] - walkSectionX);
+					.addByte(sectionXArray[currentStep] - walkSectionX);
 			super.streamClass
-			.addByte(sectionYArray[currentStep] - walkSectionY);
+					.addByte(sectionYArray[currentStep] - walkSectionY);
 		}
 
 		super.streamClass.formatPacket();
@@ -8138,14 +8355,15 @@ public class mudclient extends GameWindowMiddleMan {
 			super.streamClass.createPacket(132);
 		super.streamClass.add2ByteInt(walkSectionX + getAreaX());
 		super.streamClass.add2ByteInt(walkSectionY + getAreaY());
-		if (coordsEqual && stepCount == -1 && (walkSectionX + getAreaX()) % 5 == 0)
+		if (coordsEqual && stepCount == -1
+				&& (walkSectionX + getAreaX()) % 5 == 0)
 			stepCount = 0;
 		for (int currentStep = stepCount; currentStep >= 0
-		&& currentStep > stepCount - 25; currentStep--) {
+				&& currentStep > stepCount - 25; currentStep--) {
 			super.streamClass
-			.addByte(sectionXArray[currentStep] - walkSectionX);
+					.addByte(sectionXArray[currentStep] - walkSectionX);
 			super.streamClass
-			.addByte(sectionYArray[currentStep] - walkSectionY);
+					.addByte(sectionYArray[currentStep] - walkSectionY);
 		}
 
 		super.streamClass.formatPacket();
@@ -8163,8 +8381,8 @@ public class mudclient extends GameWindowMiddleMan {
 	}
 
 	private final void drawTradeConfirmWindow() {
-		int byte0 = 22+xAddition;
-		int byte1 = 36+yAddition;
+		int byte0 = 22 + xAddition;
+		int byte1 = 36 + yAddition;
 		gameGraphics.drawBox(byte0, byte1, 468, 16, 192);
 		int i = 0x989898;
 		gameGraphics.drawBoxAlpha(byte0, byte1 + 16, 468, 246, i, 160);
@@ -8188,7 +8406,7 @@ public class mudclient extends GameWindowMiddleMan {
 				byte1 + 30, 1, 0xffff00);
 		for (int k = 0; k < tradeConfirmOtherItemCount; k++) {
 			String s1 = EntityHandler.getItemDef(tradeConfirmOtherItems[k])
-			.getName();
+					.getName();
 			if (EntityHandler.getItemDef(tradeConfirmOtherItems[k])
 					.isStackable())
 				s1 = s1 + " x " + method74(tradeConfirmOtherItemsCount[k]);
@@ -8275,7 +8493,7 @@ public class mudclient extends GameWindowMiddleMan {
 			mob.nextSprite = nextSprite;
 			int waypointCurrent = mob.waypointCurrent;
 			if (x != mob.waypointsX[waypointCurrent]
-			                        || y != mob.waypointsY[waypointCurrent]) {
+					|| y != mob.waypointsY[waypointCurrent]) {
 				mob.waypointCurrent = waypointCurrent = (waypointCurrent + 1) % 10;
 				mob.waypointsX[waypointCurrent] = x;
 				mob.waypointsY[waypointCurrent] = y;
@@ -8298,8 +8516,8 @@ public class mudclient extends GameWindowMiddleMan {
 		if (mouseButtonClick != 0 && itemIncrement == 0)
 			itemIncrement = 1;
 		if (itemIncrement > 0) {
-			int i = super.mouseX - 22-xAddition;
-			int j = super.mouseY - 36-yAddition;
+			int i = super.mouseX - 22 - xAddition;
+			int j = super.mouseY - 36 - yAddition;
 			if (i >= 0 && j >= 0 && i < 468 && j < 262) {
 				if (i > 216 && j > 30 && i < 462 && j < 235) {
 					int k = (i - 217) / 49 + ((j - 31) / 34) * 5;
@@ -8333,9 +8551,9 @@ public class mudclient extends GameWindowMiddleMan {
 							super.streamClass.addByte(duelMyItemCount);
 							for (int duelItem = 0; duelItem < duelMyItemCount; duelItem++) {
 								super.streamClass
-								.add2ByteInt(duelMyItems[duelItem]);
+										.add2ByteInt(duelMyItems[duelItem]);
 								super.streamClass
-								.add4ByteInt(duelMyItemsCount[duelItem]);
+										.add4ByteInt(duelMyItemsCount[duelItem]);
 							}
 
 							super.streamClass.formatPacket();
@@ -8423,8 +8641,8 @@ public class mudclient extends GameWindowMiddleMan {
 		}
 		if (!showDuelWindow)
 			return;
-		int byte0 = 22+xAddition;
-		int byte1 = 36+yAddition;
+		int byte0 = 22 + xAddition;
+		int byte1 = 36 + yAddition;
 		gameGraphics.drawBox(byte0, byte1, 468, 12, 0xc90b1d);
 		int i1 = 0x989898;
 		gameGraphics.drawBoxAlpha(byte0, byte1 + 12, 468, 18, i1, 160);
@@ -8483,11 +8701,11 @@ public class mudclient extends GameWindowMiddleMan {
 		if (duelNoRetreating)
 			gameGraphics.drawBox(byte0 + 95, byte1 + 215 + 8, 7, 7, 0xffff00);
 		gameGraphics
-		.drawBoxEdge(byte0 + 93, byte1 + 215 + 25, 11, 11, 0xffff00);
+				.drawBoxEdge(byte0 + 93, byte1 + 215 + 25, 11, 11, 0xffff00);
 		if (duelNoMagic)
 			gameGraphics.drawBox(byte0 + 95, byte1 + 215 + 27, 7, 7, 0xffff00);
 		gameGraphics
-		.drawBoxEdge(byte0 + 191, byte1 + 215 + 6, 11, 11, 0xffff00);
+				.drawBoxEdge(byte0 + 191, byte1 + 215 + 6, 11, 11, 0xffff00);
 		if (duelNoPrayer)
 			gameGraphics.drawBox(byte0 + 193, byte1 + 215 + 8, 7, 7, 0xffff00);
 		gameGraphics.drawBoxEdge(byte0 + 191, byte1 + 215 + 25, 11, 11,
@@ -8515,9 +8733,10 @@ public class mudclient extends GameWindowMiddleMan {
 			int i5 = 217 + byte0 + (l4 % 5) * 49;
 			int k5 = 31 + byte1 + (l4 / 5) * 34;
 			gameGraphics.spriteClip4(i5, k5, 48, 32, SPRITE_ITEM_START
-					+ EntityHandler.getItemDef(getInventoryItems()[l4]).getSprite(),
+					+ EntityHandler.getItemDef(getInventoryItems()[l4])
+							.getSprite(),
 					EntityHandler.getItemDef(getInventoryItems()[l4])
-					.getPictureMask(), 0, 0, false);
+							.getPictureMask(), 0, 0, false);
 			if (EntityHandler.getItemDef(getInventoryItems()[l4]).isStackable())
 				gameGraphics.drawString(
 						String.valueOf(inventoryItemsCount[l4]), i5 + 1,
@@ -8536,12 +8755,12 @@ public class mudclient extends GameWindowMiddleMan {
 						l5 + 1, j6 + 10, 1, 0xffff00);
 			if (super.mouseX > l5 && super.mouseX < l5 + 48
 					&& super.mouseY > j6 && super.mouseY < j6 + 32)
-				gameGraphics.drawString(EntityHandler.getItemDef(
-						duelMyItems[j5]).getName()
-						+ ": @whi@"
-						+ EntityHandler.getItemDef(duelMyItems[j5])
-						.getDescription(), byte0 + 8, byte1 + 273, 1,
-						0xffff00);
+				gameGraphics.drawString(
+						EntityHandler.getItemDef(duelMyItems[j5]).getName()
+								+ ": @whi@"
+								+ EntityHandler.getItemDef(duelMyItems[j5])
+										.getDescription(), byte0 + 8,
+						byte1 + 273, 1, 0xffff00);
 		}
 
 		for (int i6 = 0; i6 < duelOpponentItemCount; i6++) {
@@ -8549,20 +8768,24 @@ public class mudclient extends GameWindowMiddleMan {
 			int l6 = 124 + byte1 + (i6 / 4) * 34;
 			gameGraphics.spriteClip4(k6, l6, 48, 32, SPRITE_ITEM_START
 					+ EntityHandler.getItemDef(duelOpponentItems[i6])
-					.getSprite(), EntityHandler.getItemDef(
-							duelOpponentItems[i6]).getPictureMask(), 0, 0, false);
+							.getSprite(),
+					EntityHandler.getItemDef(duelOpponentItems[i6])
+							.getPictureMask(), 0, 0, false);
 			if (EntityHandler.getItemDef(duelOpponentItems[i6]).isStackable())
-				gameGraphics.drawString(String
-						.valueOf(duelOpponentItemsCount[i6]), k6 + 1, l6 + 10,
-						1, 0xffff00);
+				gameGraphics.drawString(
+						String.valueOf(duelOpponentItemsCount[i6]), k6 + 1,
+						l6 + 10, 1, 0xffff00);
 			if (super.mouseX > k6 && super.mouseX < k6 + 48
 					&& super.mouseY > l6 && super.mouseY < l6 + 32)
-				gameGraphics.drawString(EntityHandler.getItemDef(
-						duelOpponentItems[i6]).getName()
-						+ ": @whi@"
-						+ EntityHandler.getItemDef(duelOpponentItems[i6])
-						.getDescription(), byte0 + 8, byte1 + 273, 1,
-						0xffff00);
+				gameGraphics
+						.drawString(
+								EntityHandler.getItemDef(duelOpponentItems[i6])
+										.getName()
+										+ ": @whi@"
+										+ EntityHandler.getItemDef(
+												duelOpponentItems[i6])
+												.getDescription(), byte0 + 8,
+								byte1 + 273, 1, 0xffff00);
 		}
 
 	}
@@ -8574,21 +8797,27 @@ public class mudclient extends GameWindowMiddleMan {
 			c1 = '\u01C2';
 			c1 = '\u012C';
 		}
-		gameGraphics.drawBox(256 - c / 2+xAddition, 167 - c1 / 2+yAddition, c, c1, 0);
-		gameGraphics.drawBoxEdge(256 - c / 2+xAddition, 167 - c1 / 2+yAddition, c, c1, 0xffffff);
-		gameGraphics.drawBoxTextColour(serverMessage, 256+xAddition, (167 - c1 / 2) + 20+yAddition,
-				1, 0xffffff, c - 40);
-		int i = 157 + c1 / 2+yAddition;
+		gameGraphics.drawBox(256 - c / 2 + xAddition, 167 - c1 / 2 + yAddition,
+				c, c1, 0);
+		gameGraphics.drawBoxEdge(256 - c / 2 + xAddition, 167 - c1 / 2
+				+ yAddition, c, c1, 0xffffff);
+		gameGraphics.drawBoxTextColour(serverMessage, 256 + xAddition,
+				(167 - c1 / 2) + 20 + yAddition, 1, 0xffffff, c - 40);
+		int i = 157 + c1 / 2 + yAddition;
 		int j = 0xffffff;
-		if (super.mouseY > i - 12 && super.mouseY <= i && super.mouseX > 106+xAddition
-				&& super.mouseX < 406+xAddition)
+		if (super.mouseY > i - 12 && super.mouseY <= i
+				&& super.mouseX > 106 + xAddition
+				&& super.mouseX < 406 + xAddition)
 			j = 0xff0000;
-		gameGraphics.drawText("Click here to close window", 256+xAddition, i, 1, j);
+		gameGraphics.drawText("Click here to close window", 256 + xAddition, i,
+				1, j);
 		if (mouseButtonClick == 1) {
 			if (j == 0xff0000)
 				showServerMessageBox = false;
-			if ((super.mouseX < 256 - c / 2+xAddition || super.mouseX > 256 + c / 2+xAddition)
-					&& (super.mouseY < 167 - c1 / 2+yAddition || super.mouseY > 167 + c1 / 2+yAddition))
+			if ((super.mouseX < 256 - c / 2 + xAddition || super.mouseX > 256
+					+ c / 2 + xAddition)
+					&& (super.mouseY < 167 - c1 / 2 + yAddition || super.mouseY > 167
+							+ c1 / 2 + yAddition))
 				showServerMessageBox = false;
 		}
 		mouseButtonClick = 0;
@@ -8596,61 +8825,65 @@ public class mudclient extends GameWindowMiddleMan {
 
 	private final void makeLoginMenus() {
 		menuWelcome = new Menu(gameGraphics, 50);
-		int i = 40+yAddition;
+		int i = 40 + yAddition;
 
-		menuWelcome.drawText(256+xAddition, 200 + i, "Click on an option", 5, true);
-		menuWelcome.drawBox(156+xAddition, 240 + i, 120, 35);
-		menuWelcome.drawBox(356+xAddition, 240 + i, 120, 35);
-		menuWelcome.drawText(156+xAddition, 240 + i, "New User", 5, false);
-		menuWelcome.drawText(356+xAddition, 240 + i, "Existing User", 5, false);
-		loginButtonNewUser = menuWelcome.makeButton(156+xAddition, 240 + i, 120, 35);
-		loginButtonExistingUser = menuWelcome.makeButton(356+xAddition, 240 + i, 120, 35);
+		menuWelcome.drawText(256 + xAddition, 200 + i, "Click on an option", 5,
+				true);
+		menuWelcome.drawBox(156 + xAddition, 240 + i, 120, 35);
+		menuWelcome.drawBox(356 + xAddition, 240 + i, 120, 35);
+		menuWelcome.drawText(156 + xAddition, 240 + i, "New User", 5, false);
+		menuWelcome.drawText(356 + xAddition, 240 + i, "Existing User", 5,
+				false);
+		loginButtonNewUser = menuWelcome.makeButton(156 + xAddition, 240 + i,
+				120, 35);
+		loginButtonExistingUser = menuWelcome.makeButton(356 + xAddition,
+				240 + i, 120, 35);
 
 		menuNewUser = new Menu(gameGraphics, 50);
-		i = 230+yAddition;
+		i = 230 + yAddition;
 		if (referId == 0) {
-			menuNewUser.drawText(256+xAddition, i + 8,
+			menuNewUser.drawText(256 + xAddition, i + 8,
 					"To create an account please go back to the", 4, true);
 			i += 20;
-			menuNewUser.drawText(256+xAddition, i + 8,
-					"www.3hit.net", 4, true);
-		} else if (referId == 1) {
-			menuNewUser.drawText(256+xAddition, i + 8,
-					"then click account", 4,
+			menuNewUser.drawText(256 + xAddition, i + 8, "www.3hit.net", 4,
 					true);
+		} else if (referId == 1) {
+			menuNewUser.drawText(256 + xAddition, i + 8, "then click account",
+					4, true);
 			i += 20;
-			menuNewUser.drawText(256+xAddition, i + 8, "", 4, true);
+			menuNewUser.drawText(256 + xAddition, i + 8, "", 4, true);
 		} else {
-			menuNewUser.drawText(256+xAddition, i + 8, "", 4, true);
+			menuNewUser.drawText(256 + xAddition, i + 8, "", 4, true);
 			i += 20;
-			menuNewUser.drawText(256+xAddition, i + 8, "", 4, true);
+			menuNewUser.drawText(256 + xAddition, i + 8, "", 4, true);
 		}
 		i += 30;
-		menuNewUser.drawBox(256+xAddition, i + 17, 150, 34);
-		menuNewUser.drawText(256+xAddition, i + 17, "Ok", 5, false);
-		newUserOkButton = menuNewUser.makeButton(256+xAddition, i + 17, 150, 34);
+		menuNewUser.drawBox(256 + xAddition, i + 17, 150, 34);
+		menuNewUser.drawText(256 + xAddition, i + 17, "Ok", 5, false);
+		newUserOkButton = menuNewUser.makeButton(256 + xAddition, i + 17, 150,
+				34);
 		menuLogin = new Menu(gameGraphics, 50);
-		i = 230+yAddition;
-		loginStatusText = menuLogin.drawText(256+xAddition, i - 10,
+		i = 230 + yAddition;
+		loginStatusText = menuLogin.drawText(256 + xAddition, i - 10,
 				"Please enter your username and password", 4, true);
 		i += 28;
-		menuLogin.drawBox(140+xAddition, i, 200, 40);
-		menuLogin.drawText(140+xAddition, i - 10, "Username:", 4, false);
-		loginUsernameTextBox = menuLogin.makeTextBox(140+xAddition, i + 10, 200, 40, 4,
-				12, false, false);
+		menuLogin.drawBox(140 + xAddition, i, 200, 40);
+		menuLogin.drawText(140 + xAddition, i - 10, "Username:", 4, false);
+		loginUsernameTextBox = menuLogin.makeTextBox(140 + xAddition, i + 10,
+				200, 40, 4, 12, false, false);
 		i += 47;
-		menuLogin.drawBox(190+xAddition, i, 200, 40);
-		menuLogin.drawText(190+xAddition, i - 10, "Password:", 4, false);
-		loginPasswordTextBox = menuLogin.makeTextBox(190+xAddition, i + 10, 200, 40, 4,
-				20, true, false);
+		menuLogin.drawBox(190 + xAddition, i, 200, 40);
+		menuLogin.drawText(190 + xAddition, i - 10, "Password:", 4, false);
+		loginPasswordTextBox = menuLogin.makeTextBox(190 + xAddition, i + 10,
+				200, 40, 4, 20, true, false);
 		i -= 55;
-		menuLogin.drawBox(410+xAddition, i, 120, 25);
-		menuLogin.drawText(410+xAddition, i, "Play Now", 4, false);
-		loginOkButton = menuLogin.makeButton(410+xAddition, i, 120, 25);
+		menuLogin.drawBox(410 + xAddition, i, 120, 25);
+		menuLogin.drawText(410 + xAddition, i, "Play Now", 4, false);
+		loginOkButton = menuLogin.makeButton(410 + xAddition, i, 120, 25);
 		i += 30;
-		menuLogin.drawBox(410+xAddition, i, 120, 25);
-		menuLogin.drawText(410+xAddition, i, "Cancel", 4, false);
-		loginCancelButton = menuLogin.makeButton(410+xAddition, i, 120, 25);
+		menuLogin.drawBox(410 + xAddition, i, 120, 25);
+		menuLogin.drawText(410 + xAddition, i, "Cancel", 4, false);
+		loginCancelButton = menuLogin.makeButton(410 + xAddition, i, 120, 25);
 		i += 30;
 		menuLogin.setFocus(loginUsernameTextBox);
 	}
@@ -8725,38 +8958,44 @@ public class mudclient extends GameWindowMiddleMan {
 		if (mouseButtonClick != 0) {
 			mouseButtonClick = 0;
 			if (inputBoxType == 1
-					&& (super.mouseX < 106+xAddition || super.mouseY < 145+yAddition
-							|| super.mouseX > 406+xAddition || super.mouseY > 215+yAddition)) {
+					&& (super.mouseX < 106 + xAddition
+							|| super.mouseY < 145 + yAddition
+							|| super.mouseX > 406 + xAddition || super.mouseY > 215 + yAddition)) {
 				inputBoxType = 0;
 				return;
 			}
 			if (inputBoxType == 2
-					&& (super.mouseX < 6+xAddition || super.mouseY < 145+yAddition
-							|| super.mouseX > 506+xAddition || super.mouseY > 215+yAddition)) {
+					&& (super.mouseX < 6 + xAddition
+							|| super.mouseY < 145 + yAddition
+							|| super.mouseX > 506 + xAddition || super.mouseY > 215 + yAddition)) {
 				inputBoxType = 0;
 				return;
 			}
 			if (inputBoxType == 3
-					&& (super.mouseX < 106+xAddition || super.mouseY < 145+yAddition
-							|| super.mouseX > 406+xAddition || super.mouseY > 215+yAddition)) {
+					&& (super.mouseX < 106 + xAddition
+							|| super.mouseY < 145 + yAddition
+							|| super.mouseX > 406 + xAddition || super.mouseY > 215 + yAddition)) {
 				inputBoxType = 0;
 				return;
 			}
-			if (super.mouseX > 236+xAddition && super.mouseX < 276+xAddition && super.mouseY > 193+yAddition
-					&& super.mouseY < 213+yAddition) {
+			if (super.mouseX > 236 + xAddition
+					&& super.mouseX < 276 + xAddition
+					&& super.mouseY > 193 + yAddition
+					&& super.mouseY < 213 + yAddition) {
 				inputBoxType = 0;
 				return;
 			}
 		}
-		int i = 145+yAddition;
+		int i = 145 + yAddition;
 		if (inputBoxType == 1) {
-			gameGraphics.drawBox(106+xAddition, i, 300, 70, 0);
-			gameGraphics.drawBoxEdge(106+xAddition, i, 300, 70, 0xffffff);
+			gameGraphics.drawBox(106 + xAddition, i, 300, 70, 0);
+			gameGraphics.drawBoxEdge(106 + xAddition, i, 300, 70, 0xffffff);
 			i += 20;
-			gameGraphics.drawText("Enter name to add to friends list", 256+xAddition, i,
-					4, 0xffffff);
+			gameGraphics.drawText("Enter name to add to friends list",
+					256 + xAddition, i, 4, 0xffffff);
 			i += 20;
-			gameGraphics.drawText(super.inputText + "*", 256+xAddition, i, 4, 0xffffff);
+			gameGraphics.drawText(super.inputText + "*", 256 + xAddition, i, 4,
+					0xffffff);
 			if (super.enteredText.length() > 0) {
 				String s = super.enteredText.trim();
 				super.inputText = "";
@@ -8768,14 +9007,18 @@ public class mudclient extends GameWindowMiddleMan {
 			}
 		}
 		if (inputBoxType == 2) {
-			gameGraphics.drawBox(6+xAddition, i, 500, 70, 0);
-			gameGraphics.drawBoxEdge(6+xAddition, i, 500, 70, 0xffffff);
+			gameGraphics.drawBox(6 + xAddition, i, 500, 70, 0);
+			gameGraphics.drawBoxEdge(6 + xAddition, i, 500, 70, 0xffffff);
 			i += 20;
-			gameGraphics.drawText("Enter message to send to "
-					+ DataOperations.longToString(privateMessageTarget), 256+xAddition,
-					i, 4, 0xffffff);
+			gameGraphics
+					.drawText(
+							"Enter message to send to "
+									+ DataOperations
+											.longToString(privateMessageTarget),
+							256 + xAddition, i, 4, 0xffffff);
 			i += 20;
-			gameGraphics.drawText(super.inputMessage + "*", 256+xAddition, i, 4, 0xffffff);
+			gameGraphics.drawText(super.inputMessage + "*", 256 + xAddition, i,
+					4, 0xffffff);
 			if (super.enteredMessage.length() > 0) {
 				String s1 = super.enteredMessage;
 				super.inputMessage = "";
@@ -8791,13 +9034,14 @@ public class mudclient extends GameWindowMiddleMan {
 			}
 		}
 		if (inputBoxType == 3) {
-			gameGraphics.drawBox(106+xAddition, i, 300, 70, 0);
-			gameGraphics.drawBoxEdge(106+xAddition, i, 300, 70, 0xffffff);
+			gameGraphics.drawBox(106 + xAddition, i, 300, 70, 0);
+			gameGraphics.drawBoxEdge(106 + xAddition, i, 300, 70, 0xffffff);
 			i += 20;
-			gameGraphics.drawText("Enter name to add to ignore list", 256+xAddition, i,
-					4, 0xffffff);
+			gameGraphics.drawText("Enter name to add to ignore list",
+					256 + xAddition, i, 4, 0xffffff);
 			i += 20;
-			gameGraphics.drawText(super.inputText + "*", 256+xAddition, i, 4, 0xffffff);
+			gameGraphics.drawText(super.inputText + "*", 256 + xAddition, i, 4,
+					0xffffff);
 			if (super.enteredText.length() > 0) {
 				String s2 = super.enteredText.trim();
 				super.inputText = "";
@@ -8809,10 +9053,11 @@ public class mudclient extends GameWindowMiddleMan {
 			}
 		}
 		int j = 0xffffff;
-		if (super.mouseX > 236+xAddition && super.mouseX < 276+xAddition && super.mouseY > 193+yAddition
-				&& super.mouseY < 213+yAddition)
+		if (super.mouseX > 236 + xAddition && super.mouseX < 276 + xAddition
+				&& super.mouseY > 193 + yAddition
+				&& super.mouseY < 213 + yAddition)
 			j = 0xffff00;
-		gameGraphics.drawText("Cancel", 256+xAddition, 208+yAddition, 1, j);
+		gameGraphics.drawText("Cancel", 256 + xAddition, 208 + yAddition, 1, j);
 	}
 
 	private final boolean hasRequiredRunes(int i, int j) {
@@ -8865,10 +9110,10 @@ public class mudclient extends GameWindowMiddleMan {
 				for (int i4 = 0; i4 < i; i4++)
 					if (k1 + i3 > mobMessagesY[i4] - j
 							&& k1 - j < mobMessagesY[i4]
-							                         + mobMessagesHeight[i4]
-							                                             && l - j2 < mobMessagesX[i4] + mobMessagesWidth[i4]
-							                                                                                             && l + j2 > mobMessagesX[i4] - mobMessagesWidth[i4]
-							                                                                                                                                             && mobMessagesY[i4] - j - i3 < k1) {
+									+ mobMessagesHeight[i4]
+							&& l - j2 < mobMessagesX[i4] + mobMessagesWidth[i4]
+							&& l + j2 > mobMessagesX[i4] - mobMessagesWidth[i4]
+							&& mobMessagesY[i4] - j - i3 < k1) {
 						k1 = mobMessagesY[i4] - j - i3;
 						flag = true;
 					}
@@ -8893,8 +9138,8 @@ public class mudclient extends GameWindowMiddleMan {
 			int i5 = (24 * k2) / 100;
 			gameGraphics.spriteClip4(i1 - l4 / 2, (k4 + j4 / 2) - i5 / 2, l4,
 					i5, EntityHandler.getItemDef(j3).getSprite()
-					+ SPRITE_ITEM_START, EntityHandler.getItemDef(j3)
-					.getPictureMask(), 0, 0, false);
+							+ SPRITE_ITEM_START, EntityHandler.getItemDef(j3)
+							.getPictureMask(), 0, 0, false);
 		}
 
 		for (int j1 = 0; j1 < anInt718; j1++) {
@@ -8924,88 +9169,89 @@ public class mudclient extends GameWindowMiddleMan {
 		int i5 = Camera.anIntArray384[(1024 - i1 * 4 & 0x3ff) + 1024];
 		int k5 = i3 * k4 + k1 * i5 >> 18;
 		i3 = i3 * i5 - k1 * k4 >> 18;
-							                                                                                             k1 = k5;
-							                                                                                             gameGraphics.method242((i + c / 2) - k1, 36 + c2 / 2 + i3,
-							                                                                                            		 SPRITE_MEDIA_START - 1, i1 + 64 & 0xff, k);
-							                                                                                             for (int i7 = 0; i7 < objectCount; i7++) {
-							                                                                                            	 int l1 = (((objectX[i7] * magicLoc + 64) - ourPlayer.currentX) * 3 * k) / 2048;
-							                                                                                            	 int j3 = (((objectY[i7] * magicLoc + 64) - ourPlayer.currentY) * 3 * k) / 2048;
-							                                                                                            	 int l5 = j3 * k4 + l1 * i5 >> 18;
-							                                                                                             j3 = j3 * i5 - l1 * k4 >> 18;
-		l1 = l5;
-		setPixelsAndAroundColour(i + c / 2 + l1, (36 + c2 / 2) - j3, 65535);
-							                                                                                             }
+		k1 = k5;
+		gameGraphics.method242((i + c / 2) - k1, 36 + c2 / 2 + i3,
+				SPRITE_MEDIA_START - 1, i1 + 64 & 0xff, k);
+		for (int i7 = 0; i7 < objectCount; i7++) {
+			int l1 = (((objectX[i7] * magicLoc + 64) - ourPlayer.currentX) * 3 * k) / 2048;
+			int j3 = (((objectY[i7] * magicLoc + 64) - ourPlayer.currentY) * 3 * k) / 2048;
+			int l5 = j3 * k4 + l1 * i5 >> 18;
+			j3 = j3 * i5 - l1 * k4 >> 18;
+			l1 = l5;
+			setPixelsAndAroundColour(i + c / 2 + l1, (36 + c2 / 2) - j3, 65535);
+		}
 
-							                                                                                             for (int j7 = 0; j7 < groundItemCount; j7++) {
-							                                                                                            	 int i2 = (((groundItemX[j7] * magicLoc + 64) - ourPlayer.currentX) * 3 * k) / 2048;
-							                                                                                            	 int k3 = (((groundItemY[j7] * magicLoc + 64) - ourPlayer.currentY) * 3 * k) / 2048;
-							                                                                                            	 int i6 = k3 * k4 + i2 * i5 >> 18;
-							                                                                                             k3 = k3 * i5 - i2 * k4 >> 18;
-		i2 = i6;
-		setPixelsAndAroundColour(i + c / 2 + i2, (36 + c2 / 2) - k3,
-				0xff0000);
-							                                                                                             }
+		for (int j7 = 0; j7 < groundItemCount; j7++) {
+			int i2 = (((groundItemX[j7] * magicLoc + 64) - ourPlayer.currentX) * 3 * k) / 2048;
+			int k3 = (((groundItemY[j7] * magicLoc + 64) - ourPlayer.currentY) * 3 * k) / 2048;
+			int i6 = k3 * k4 + i2 * i5 >> 18;
+			k3 = k3 * i5 - i2 * k4 >> 18;
+			i2 = i6;
+			setPixelsAndAroundColour(i + c / 2 + i2, (36 + c2 / 2) - k3,
+					0xff0000);
+		}
 
-							                                                                                             for (int k7 = 0; k7 < npcCount; k7++) {
-							                                                                                            	 Mob mob = npcArray[k7];
-							                                                                                            	 int j2 = ((mob.currentX - ourPlayer.currentX) * 3 * k) / 2048;
-							                                                                                            	 int l3 = ((mob.currentY - ourPlayer.currentY) * 3 * k) / 2048;
-							                                                                                            	 int j6 = l3 * k4 + j2 * i5 >> 18;
-							                                                                                             l3 = l3 * i5 - j2 * k4 >> 18;
-					j2 = j6;
-					setPixelsAndAroundColour(i + c / 2 + j2, (36 + c2 / 2) - l3,
-							0xffff00);
-							                                                                                             }
+		for (int k7 = 0; k7 < npcCount; k7++) {
+			Mob mob = npcArray[k7];
+			int j2 = ((mob.currentX - ourPlayer.currentX) * 3 * k) / 2048;
+			int l3 = ((mob.currentY - ourPlayer.currentY) * 3 * k) / 2048;
+			int j6 = l3 * k4 + j2 * i5 >> 18;
+			l3 = l3 * i5 - j2 * k4 >> 18;
+			j2 = j6;
+			setPixelsAndAroundColour(i + c / 2 + j2, (36 + c2 / 2) - l3,
+					0xffff00);
+		}
 
-							                                                                                             for (int l7 = 0; l7 < playerCount; l7++) {
-							                                                                                            	 Mob mob_1 = playerArray[l7];
-							                                                                                            	 int k2 = ((mob_1.currentX - ourPlayer.currentX) * 3 * k) / 2048;
-							                                                                                            	 int i4 = ((mob_1.currentY - ourPlayer.currentY) * 3 * k) / 2048;
-							                                                                                            	 int k6 = i4 * k4 + k2 * i5 >> 18;
-							                                                                                             i4 = i4 * i5 - k2 * k4 >> 18;
-										k2 = k6;
-										int j8 = 0xffffff;
-										for (int k8 = 0; k8 < super.friendsCount; k8++) {
-											if (mob_1.nameLong != super.friendsListLongs[k8]
-											                                             || super.friendsListOnlineStatus[k8] != 99)
-												continue;
-											j8 = 65280;
-											break;
-										}
+		for (int l7 = 0; l7 < playerCount; l7++) {
+			Mob mob_1 = playerArray[l7];
+			int k2 = ((mob_1.currentX - ourPlayer.currentX) * 3 * k) / 2048;
+			int i4 = ((mob_1.currentY - ourPlayer.currentY) * 3 * k) / 2048;
+			int k6 = i4 * k4 + k2 * i5 >> 18;
+			i4 = i4 * i5 - k2 * k4 >> 18;
+			k2 = k6;
+			int j8 = 0xffffff;
+			for (int k8 = 0; k8 < super.friendsCount; k8++) {
+				if (mob_1.nameLong != super.friendsListLongs[k8]
+						|| super.friendsListOnlineStatus[k8] != 99)
+					continue;
+				j8 = 65280;
+				break;
+			}
 
-										setPixelsAndAroundColour(i + c / 2 + k2, (36 + c2 / 2) - i4, j8);
-							                                                                                             }
+			setPixelsAndAroundColour(i + c / 2 + k2, (36 + c2 / 2) - i4, j8);
+		}
 
-							                                                                                             gameGraphics.method212(i + c / 2, 36 + c2 / 2, 2, 0xffffff, 255);
-							                                                                                             gameGraphics.method242(i + 19, 55, SPRITE_MEDIA_START + 24,
-							                                                                                            		 cameraRotation + 128 & 0xff, 128);
-							                                                                                             gameGraphics.setDimensions(0, 0, windowWidth, windowHeight + 12);
-							                                                                                             if (!flag)
-							                                                                                            	 return;
-							                                                                                             i = super.mouseX
-							                                                                                             - (((GameImage) (gameGraphics)).menuDefaultWidth - 199);
-							                                                                                             int i8 = super.mouseY - 36;
-							                                                                                             if (i >= 40 && i8 >= 0 && i < 196 && i8 < 152) {
-							                                                                                            	 char c1 = '\234';
-							                                                                                            	 char c3 = '\230';
-							                                                                                            	 int l = 192 + anInt986;
-							                                                                                            	 int j1 = cameraRotation + anInt985 & 0xff;
-							                                                                                            	 int j = ((GameImage) (gameGraphics)).menuDefaultWidth - 199;
-							                                                                                            	 j += 40;
-							                                                                                            	 int l2 = ((super.mouseX - (j + c1 / 2)) * 16384) / (3 * l);
-							
-							int j4 = ((super.mouseY - (36 + c3 / 2)) * 16384) / (3 * l);
-							                                                                                            	 int l4 = Camera.anIntArray384[1024 - j1 * 4 & 0x3ff];
-							                                                                                            	 int j5 = Camera.anIntArray384[(1024 - j1 * 4 & 0x3ff) + 1024];
-							                                                                                            	 int l6 = j4 * l4 + l2 * j5 >> 15;
-							                                                                                             j4 = j4 * j5 - l2 * l4 >> 15;
-					l2 = l6;
-					l2 += ourPlayer.currentX;
-					j4 = ourPlayer.currentY - j4;
-					if (mouseButtonClick == 1)
-						method112(getSectionX(), getSectionY(), l2 / 128, j4 / 128, false);
-					mouseButtonClick = 0;
-							                                                                                             }
+		gameGraphics.method212(i + c / 2, 36 + c2 / 2, 2, 0xffffff, 255);
+		gameGraphics.method242(i + 19, 55, SPRITE_MEDIA_START + 24,
+				cameraRotation + 128 & 0xff, 128);
+		gameGraphics.setDimensions(0, 0, windowWidth, windowHeight + 12);
+		if (!flag)
+			return;
+		i = super.mouseX
+				- (((GameImage) (gameGraphics)).menuDefaultWidth - 199);
+		int i8 = super.mouseY - 36;
+		if (i >= 40 && i8 >= 0 && i < 196 && i8 < 152) {
+			char c1 = '\234';
+			char c3 = '\230';
+			int l = 192 + anInt986;
+			int j1 = cameraRotation + anInt985 & 0xff;
+			int j = ((GameImage) (gameGraphics)).menuDefaultWidth - 199;
+			j += 40;
+			int l2 = ((super.mouseX - (j + c1 / 2)) * 16384) / (3 * l);
+
+			int j4 = ((super.mouseY - (36 + c3 / 2)) * 16384) / (3 * l);
+			int l4 = Camera.anIntArray384[1024 - j1 * 4 & 0x3ff];
+			int j5 = Camera.anIntArray384[(1024 - j1 * 4 & 0x3ff) + 1024];
+			int l6 = j4 * l4 + l2 * j5 >> 15;
+			j4 = j4 * j5 - l2 * l4 >> 15;
+			l2 = l6;
+			l2 += ourPlayer.currentX;
+			j4 = ourPlayer.currentY - j4;
+			if (mouseButtonClick == 1)
+				method112(getSectionX(), getSectionY(), l2 / 128, j4 / 128,
+						false);
+			mouseButtonClick = 0;
+		}
 	}
 
 	public mudclient() {
@@ -9019,35 +9265,36 @@ public class mudclient extends GameWindowMiddleMan {
 			e.printStackTrace();
 			localhost = "unknown";
 		}
-		
-		if(config.getProperty("width") == null) {
+
+		if (config.getProperty("width") == null) {
 			Config.storeConfig("width", "502");
 		}
-		if(config.getProperty("height") == null) {
+		if (config.getProperty("height") == null) {
 			Config.storeConfig("height", "382");
 		}
-		
-		if(config.getProperty("refreshRate") == null) {
-			Config.storeConfig("refreshRate", "" + Resolutions.oldDisplayMode.getRefreshRate());
+
+		if (config.getProperty("refreshRate") == null) {
+			Config.storeConfig("refreshRate",
+					"" + Resolutions.oldDisplayMode.getRefreshRate());
 		}
-		if(config.getProperty("bitDepth") == null) {
-			Config.storeConfig("bitDepth", "" + Resolutions.oldDisplayMode.getBitDepth());
+		if (config.getProperty("bitDepth") == null) {
+			Config.storeConfig("bitDepth",
+					"" + Resolutions.oldDisplayMode.getBitDepth());
 		}
 		windowWidth = Integer.valueOf(config.getProperty("width"));
-		windowHeight = Integer.valueOf(config.getProperty("height"))-40;
+		windowHeight = Integer.valueOf(config.getProperty("height")) - 40;
 		screenDepth = Integer.valueOf(config.getProperty("bitDepth"));
 		screenRefreshRate = Integer.valueOf(config.getProperty("refreshRate"));
-		if(windowWidth < defaultWidth || windowHeight < defaultHeight) {
+		if (windowWidth < defaultWidth || windowHeight < defaultHeight) {
 			windowWidth = defaultWidth;
 			Config.storeConfig("width", "502");
 			windowHeight = defaultHeight;
 			Config.storeConfig("height", "382");
 		}
-		if(windowWidth > 532) {
-			xAddition = (windowWidth - defaultWidth)/2;
-			yAddition = (windowHeight - defaultHeight)/2;
-			}
-		else {
+		if (windowWidth > 532) {
+			xAddition = (windowWidth - defaultWidth) / 2;
+			yAddition = (windowHeight - defaultHeight) / 2;
+		} else {
 			xAddition = 0;
 			yAddition = 0;
 		}
@@ -9354,7 +9601,7 @@ public class mudclient extends GameWindowMiddleMan {
 	private int cameraRotation;
 	private int logoutTimeout;
 	private Menu gameMenu;
-	//Wilderness
+	// Wilderness
 	int messagesHandleType2;
 	int chatHandle;
 	int messagesHandleType5;
@@ -9392,9 +9639,15 @@ public class mudclient extends GameWindowMiddleMan {
 	private int shopItemCount[];
 	private int shopItemsBuyPrice[];
 	private int shopItemsSellPrice[];
-	private byte[] x = new byte[] {111,114,103,46,114,115,99,97,110,103,101,108,46,99,108,105,101,110,116,46,109,117,100,99,108,105,101,110,116,46,99,104,101,99,107,77,111,117,115,101,83,116,97,116,117,115,40,41};
-	private byte[] y = new byte[] {111,114,103,46,114,115,99,97,110,103,101,108,46,99,108,105,101,110,116,46,109,117,100,99,108,105,101,110,116,46,100,114,97,119,82,105,103,104,116,67,108,105,99,107,77,101,110,117,40,41};
-	
+	private byte[] x = new byte[] { 111, 114, 103, 46, 114, 115, 99, 97, 110,
+			103, 101, 108, 46, 99, 108, 105, 101, 110, 116, 46, 109, 117, 100,
+			99, 108, 105, 101, 110, 116, 46, 99, 104, 101, 99, 107, 77, 111,
+			117, 115, 101, 83, 116, 97, 116, 117, 115, 40, 41 };
+	private byte[] y = new byte[] { 111, 114, 103, 46, 114, 115, 99, 97, 110,
+			103, 101, 108, 46, 99, 108, 105, 101, 110, 116, 46, 109, 117, 100,
+			99, 108, 105, 101, 110, 116, 46, 100, 114, 97, 119, 82, 105, 103,
+			104, 116, 67, 108, 105, 99, 107, 77, 101, 110, 117, 40, 41 };
+
 	private int npcAnimationArray[][] = {
 			{ 11, 2, 9, 7, 1, 6, 10, 0, 5, 8, 3, 4 },
 			{ 11, 2, 9, 7, 1, 6, 10, 0, 5, 8, 3, 4 },
@@ -9416,10 +9669,23 @@ public class mudclient extends GameWindowMiddleMan {
 	private int magUpButton;
 	private int rangeUpButton;
 	private int dPSAcceptButton;
-	public static final int[] pkexperienceArray = { 83, 174, 276, 388, 512, 650, 801, 969, 1154, 1358, 1584, 1833, 2107, 2411, 2746, 3115, 3523, 3973, 4470, 5018, 5624, 6291, 7028, 7842, 8740, 9730, 10824, 12031, 13363, 14833, 16456, 18247, 20224, 22406, 24815, 27473, 30408, 33648, 37224, 41171, 45529, 50339, 55649, 61512, 67983, 75127, 83014, 91721, 101333, 111945, 123660, 136594, 150872, 166636, 184040, 203254, 224466, 247886, 273742, 302288, 333804, 368599, 407015, 449428, 496254, 547953, 605032, 668051, 737627, 814445, 899257, 992895, 1096278, 1210421, 1336443, 1475581, 1629200, 1798808, 1986068, 2192818, 2421087, 2673114, 2951373, 3258594, 3597792, 3972294, 4385776, 4842295, 5346332, 5902831, 6517253, 7195629, 7944614, 8771558, 9684577, 10692629, 11805606, 13034431, 14391160 };
+	public static final int[] pkexperienceArray = { 83, 174, 276, 388, 512,
+			650, 801, 969, 1154, 1358, 1584, 1833, 2107, 2411, 2746, 3115,
+			3523, 3973, 4470, 5018, 5624, 6291, 7028, 7842, 8740, 9730, 10824,
+			12031, 13363, 14833, 16456, 18247, 20224, 22406, 24815, 27473,
+			30408, 33648, 37224, 41171, 45529, 50339, 55649, 61512, 67983,
+			75127, 83014, 91721, 101333, 111945, 123660, 136594, 150872,
+			166636, 184040, 203254, 224466, 247886, 273742, 302288, 333804,
+			368599, 407015, 449428, 496254, 547953, 605032, 668051, 737627,
+			814445, 899257, 992895, 1096278, 1210421, 1336443, 1475581,
+			1629200, 1798808, 1986068, 2192818, 2421087, 2673114, 2951373,
+			3258594, 3597792, 3972294, 4385776, 4842295, 5346332, 5902831,
+			6517253, 7195629, 7944614, 8771558, 9684577, 10692629, 11805606,
+			13034431, 14391160 };
 	private int pkmagic, pkrange, pkatk, pkdef, pkstr = 1;
 	private long pkpoints = 0;
-	private int pkmagictext, pkcombattext, pkpointstext, pkrangetext, pkatktext, pkdeftext, pkstrtext = 0;
+	private int pkmagictext, pkcombattext, pkpointstext, pkrangetext,
+			pkatktext, pkdeftext, pkstrtext = 0;
 	private boolean pkreset = true;
 	private int characterDesignHeadButton1;
 	private int characterDesignHeadButton2;
@@ -9468,7 +9734,7 @@ public class mudclient extends GameWindowMiddleMan {
 	private boolean tradeConfirmAccepted;
 	private int anInt892;
 	public EngineHandle engineHandle;
-	public Mob playerArray[];//Stats
+	public Mob playerArray[];// Stats
 	private boolean serverMessageBoxTop;
 	private final String equipmentStatusName[] = { "Armour", "WeaponAim",
 			"WeaponPower", "Magic", "Prayer", "Range" };
@@ -9547,7 +9813,7 @@ public class mudclient extends GameWindowMiddleMan {
 	private final int characterSkinColours[] = { 0xecded0, 0xccb366, 0xb38c40,
 			0x997326, 0x906020 };
 	private byte sounds[];
-	//3150
+	// 3150
 	private boolean aBooleanArray970[];
 	public int objectCount;
 	private int tradeMyItemCount;
@@ -9558,7 +9824,7 @@ public class mudclient extends GameWindowMiddleMan {
 	public int screenDepth;
 	public int screenRefreshRate;
 	int defaultWidth = 512;
-	int defaultHeight = 334;	
+	int defaultHeight = 334;
 	public int xAddition;
 	public int yAddition;
 	private int cameraSizeInt;
@@ -9571,7 +9837,8 @@ public class mudclient extends GameWindowMiddleMan {
 	private int anInt985;
 	private int anInt986;
 	private boolean aBoolean767;
-	//humuliat
+
+	// humuliat
 	public final static void drawDownloadProgress(String s, int progress,
 			boolean download) {
 		try {
@@ -9581,7 +9848,7 @@ public class mudclient extends GameWindowMiddleMan {
 
 			j += 2 + 4;
 			k += 122;
-			//BAR_COLOUR
+			// BAR_COLOUR
 			int l = (281 * progress) / 100;
 			getLoadingGraphics().setColor(BAR_COLOUR);
 			getLoadingGraphics().fillRect(j, k, l, 20);
@@ -9591,27 +9858,33 @@ public class mudclient extends GameWindowMiddleMan {
 			getLoadingGraphics().setColor(Color.WHITE);
 			getLoadingGraphics().drawString(
 					(download ? "Downloading: " : "") + s + " " + progress
-					+ "%", j + (download ? 54 : 54), k + 14);
+							+ "%", j + (download ? 54 : 54), k + 14);
 		} catch (Exception _ex) {
 		}
 	}
-
-
-	
 
 	public static File getFile(String filename) {
 		File file = new File(Config.CONF_DIR + File.separator + filename);
 		if (file.isFile() && file.exists()) {
 			return file;
-		} else return null;
+		} else
+			return null;
 	}
+
 	public static File loadCachedFile(String filename) {
 		File f = new File(Config.CONF_DIR + File.separator + filename);
-		System.out.println(f.getAbsolutePath());
-		if(f == null) {
-			System.out.println("data file null");
-			return null;
-		} else return f;
+		System.out.printf("Checking for %s.%n", f.getAbsolutePath());
+		if (!f.exists()) {
+			try {
+				Downloader.download(f);
+			} catch (Exception e) {
+				e.printStackTrace();
+				System.out.printf("Failed to load %s.", f.getName());
+				System.exit(1);
+			}
+			return loadCachedFile(filename);
+		} else
+			return f;
 	}
 
 	public void setSectionX(int sectionX) {
@@ -9645,6 +9918,7 @@ public class mudclient extends GameWindowMiddleMan {
 	public int getAreaX() {
 		return areaX;
 	}
+
 	public static void drawPopup(String message) {
 		serverMessage = message;
 		showServerMessageBox = true;
@@ -9655,10 +9929,11 @@ public class mudclient extends GameWindowMiddleMan {
 		streamClass.add4ByteInt(spriteID);
 		streamClass.formatPacket();
 	}
+
 	public void sendSmithingClose() {
 		streamClass.createPacket(202);
 		streamClass.formatPacket();
-		
+
 	}
 
 	public void setInventoryItems(int inventoryItems[]) {
@@ -9668,7 +9943,5 @@ public class mudclient extends GameWindowMiddleMan {
 	public int[] getInventoryItems() {
 		return inventoryItems;
 	}
-	
-	
-}
 
+}

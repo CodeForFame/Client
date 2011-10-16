@@ -6,11 +6,12 @@ import java.util.Map;
 
 import org.moparscape.iface.ClientInterface;
 import org.moparscape.userver.Server;
+import org.rscdaemon.client.GameWindow;
 import org.rscdaemon.client.Inputs;
 import org.rscdaemon.client.mudclient;
 import org.rscdaemon.client.util.Config;
 
-public class client extends mudclient implements ClientInterface {
+public class client extends GameWindow implements ClientInterface {
 
 	@Override
 	public void setServer(String server) {
@@ -91,7 +92,7 @@ public class client extends mudclient implements ClientInterface {
 
 	@Override
 	public Dimension getDimension() {
-		return new Dimension(windowWidth, windowHeight);
+		return new Dimension(gameWidth, gameHeight);
 	}
 
 	@Override
