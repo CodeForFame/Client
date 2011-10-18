@@ -12,7 +12,7 @@ public class Config {
 	public static String SERVER_IP = "localhost", CONF_DIR =  System.getProperty("user.home") + File.separator + ".moparscape" + File.separator + "devCache", MEDIA_DIR = CONF_DIR;
 	public static int SERVER_PORT = 43595, MOVIE_FPS = 5;
 	public static long START_TIME = System.currentTimeMillis();
-
+	public static String CACHE_URL = "http://localhost/cache/";
 	
 	public static final int CLIENT_VERSION = 37;
 	
@@ -22,6 +22,10 @@ public class Config {
 	 */
 	public static Properties loadConfig() {
 		File f = new File(CONF_DIR + File.separator + "config.properties");
+		File dir = new File(CONF_DIR);
+		if(!dir.exists()) {
+			dir.mkdirs();
+		}
 		if(!f.exists())
 			try {
 				f.createNewFile();

@@ -39,7 +39,9 @@ public class PersistenceManager {
 			Object rv = xstream.fromXML(is);
 			return rv;
 		} catch (IOException ioe) {
-			System.err.println(ioe.getMessage());
+			ioe.printStackTrace();
+			System.out.println("Failed to load cache.");
+			System.exit(1);
 		}
 		return null;
 	}
