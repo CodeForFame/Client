@@ -13,20 +13,13 @@
 				<pathelement location="${lib}/xpp3.jar" />
 				<pathelement location="${lib}/xstream.jar" />
 				<pathelement location="${lib}/hex-string.jar" />
-				<pathelement location="${lib}/MoparScape_src.jar" />
+				<pathelement location="${lib}/MoparScape.jar" />
 				<pathelement path="${java.class.path}/" />
 			</classpath>
 		</javac>
 		<jar basedir="${build}" destfile="${jar}">
-			<zipgroupfileset dir="${lib}" includes="*.jar" excludes="MoparScape.jar" />
+			<zipgroupfileset dir="${lib}" includes="*.jar" />
 		</jar>
-	</target>
-	<target name="runclient">
-		<java classname="org.rscdaemon.client.mudclient" fork="true">
-			<arg value="${settings}" />
-			<classpath>
-				<pathelement path="${jar}/" />
-			</classpath>
-		</java>
+		<signjar jar="${jar}" alias="MoparClassic" keystore="MoparClassicKeystore" storepass="moparscape"/>
 	</target>
 </project>
