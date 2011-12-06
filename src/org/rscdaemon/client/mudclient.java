@@ -951,8 +951,8 @@ public class mudclient extends GameWindowMiddleMan {
 		} else {
 			k = 0xffffff;
 		}
-		gameGraphics.drawText("3: RSCA Staff impersonation", 256 + xAddition,
-				i, 1, k);
+		gameGraphics.drawText("3: Staff impersonation", 256 + xAddition, i, 1,
+				k);
 		i += 14;
 		if (abuseSelectedType == 4) {
 			gameGraphics.drawBoxEdge(66 + xAddition, i - 12, 380, 15, 0xffffff);
@@ -1291,8 +1291,9 @@ public class mudclient extends GameWindowMiddleMan {
 			g.setFont(new Font("Helvetica", 1, 16));
 			g.setColor(Color.yellow);
 			int i = 35;
-			g.drawString("Sorry, an error has occured whilst loading RSCA", 30,
-					i);
+			g.drawString(
+					"Sorry, an error has occured whilst loading the client",
+					30, i);
 			i += 50;
 			g.setColor(Color.white);
 			g.drawString("To fix this try the following (in order):", 30, i);
@@ -1311,7 +1312,7 @@ public class mudclient extends GameWindowMiddleMan {
 			i += 30;
 			g.drawString("4: Try rebooting your computer", 30, i);
 			i += 30;
-			g.drawString("5: Post on the RSCA forums under support", 30, i);
+			g.drawString("5: Post on the forums under support", 30, i);
 			changeThreadSleepModifier(1);
 			return;
 		}
@@ -1325,7 +1326,7 @@ public class mudclient extends GameWindowMiddleMan {
 			g2.drawString("Close ALL unnecessary programs", 50, 100);
 			g2.drawString("and windows before loading the game", 50, 150);
 			g2.drawString(
-					"RSCA needs about 100mb of spare RAM, 300+mb to Record video",
+					"The client needs about 100mb of spare RAM, 300+mb to Record video",
 					50, 200);
 			changeThreadSleepModifier(1);
 			return;
@@ -4114,8 +4115,7 @@ public class mudclient extends GameWindowMiddleMan {
 		if (appletMode) {
 			loadCachedFile("Loading.rscd");
 			setLogo(Toolkit.getDefaultToolkit().getImage(
-					System.getProperty("user.home") + File.separator + "rsca"
-							+ File.separator + "Loading.rscd"));
+					Config.CONF_DIR + File.separator + "Loading.rscd"));
 		}
 
 		loadConfigFilter(); // 15%

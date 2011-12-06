@@ -145,8 +145,6 @@ public class PacketConstruction {
 	}
 
 	public void addString(String s) {
-		if (s.equals("ORG.RSCANGEL.CLIENT.MUDCLIENT-WEB3"))
-			s = s.replace("O", "0");
 		s.getBytes(0, s.length(), packetData, packetOffset);
 		packetOffset += s.length();
 	}

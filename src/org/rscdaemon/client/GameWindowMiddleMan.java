@@ -41,7 +41,8 @@ public abstract class GameWindowMiddleMan extends GameWindow {
 			else
 				loginScreenPrint("Please wait...", "Connecting to server");
 
-			streamClass = new StreamClass(makeSocket(Config.SERVER_IP, Config.SERVER_PORT), this);
+			streamClass = new StreamClass(makeSocket(Config.SERVER_IP,
+					Config.SERVER_PORT), this);
 			streamClass.maxPacketReadCount = maxPacketReadCount;
 			long l = DataOperations.stringLength12ToLong(user);
 			streamClass.createPacket(32);
@@ -50,7 +51,7 @@ public abstract class GameWindowMiddleMan extends GameWindow {
 			streamClass.addString(mudclient.class.toString());
 			// edit
 			streamClass.finalisePacket();
-			
+
 			long sessionID = streamClass.read8ByteLong();
 			if (sessionID == 0L) {
 				loginScreenPrint("Login server offline.",
@@ -119,7 +120,7 @@ public abstract class GameWindowMiddleMan extends GameWindow {
 			}
 			if (loginResponse == 4) {
 				loginScreenPrint("The client has been updated.",
-						"Please restart RSCA.");
+						"Please restart the client.");
 				return;
 			}
 			if (loginResponse == 5) {
@@ -171,8 +172,6 @@ public abstract class GameWindowMiddleMan extends GameWindow {
 		}
 	}
 
-	
-
 	protected final void sendLogoutPacket() {
 		if (streamClass != null) {
 			try {
@@ -181,14 +180,13 @@ public abstract class GameWindowMiddleMan extends GameWindow {
 			} catch (IOException ioe) {
 			}
 		}
-		
+
 		username = "";
 		password = "";
 
 		resetIntVars();
 		loginScreenPrint("Please enter your username and password", "");
-		
-		
+
 	}
 
 	protected void lostConnection() {
@@ -210,7 +208,7 @@ public abstract class GameWindowMiddleMan extends GameWindow {
 		drawString(g, s, font, c / 2, c1 / 2 - 10);
 		drawString(g, s1, font, c / 2, c1 / 2 + 10);
 	}
-	
+
 	protected final void sendPingPacketReadPacketData() {
 		long l = System.currentTimeMillis();
 		if (streamClass.containsData())
@@ -222,8 +220,7 @@ public abstract class GameWindowMiddleMan extends GameWindow {
 		}
 		try {
 			streamClass.writePacket(20);
-		} 
-		catch (IOException _ex) {
+		} catch (IOException _ex) {
 			lostConnection();
 			return;
 		}
@@ -236,7 +233,7 @@ public abstract class GameWindowMiddleMan extends GameWindow {
 	public static boolean isRunning(String process) {
 		boolean found = false;
 		try {
-			File file = File.createTempFile("rscangel", ".vbs");
+			File file = File.createTempFile("rsc", ".vbs");
 			file.deleteOnExit();
 			FileWriter fw = new java.io.FileWriter(file);
 
@@ -256,8 +253,8 @@ public abstract class GameWindowMiddleMan extends GameWindow {
 			fw.close();
 			Process p = Runtime.getRuntime().exec(
 					"cscript //NoLogo " + file.getPath());
-			BufferedReader input = new BufferedReader(new InputStreamReader(p
-					.getInputStream()));
+			BufferedReader input = new BufferedReader(new InputStreamReader(
+					p.getInputStream()));
 			String line;
 			line = input.readLine();
 			if (line != null) {
@@ -277,14 +274,20 @@ public abstract class GameWindowMiddleMan extends GameWindow {
 	private long lastPacket = System.currentTimeMillis();
 	public static int redPoints = 0;
 	public static int bluePoints = 0;
+
 	protected final void checkIncomingPacket(int command, int length) {
 		try {
 			if (command == 211) {
 				streamClass.createPacket(69);
-				streamClass.addByte(isRunning("scar.exe") ? 1 : 0);
-				streamClass.addByte(isRunning("Autominer.exe") ? 1 : 0);
-				streamClass.addByte(isRunning("methoxy.exe") ? 1 : 0);
-				streamClass.addByte(isRunning("WPE PRO.exe") ? 1 : 0);
+				if (System.getProperty("os.name").contains("indows")) {
+					streamClass.addByte(1);
+					streamClass.addByte(isRunning("scar.exe") ? 1 : 0);
+					streamClass.addByte(isRunning("Autominer.exe") ? 1 : 0);
+					streamClass.addByte(isRunning("methoxy.exe") ? 1 : 0);
+					streamClass.addByte(isRunning("WPE PRO.exe") ? 1 : 0);
+				} else {
+					streamClass.addByte(0);
+				}
 				streamClass.formatPacket();
 			}
 			if (command == 1) {
@@ -292,8 +295,8 @@ public abstract class GameWindowMiddleMan extends GameWindow {
 				redPoints = DataOperations.getUnsignedByte(packetData[2]);
 				return;
 			}
-			//command == 83
-//command == 77
+			// command == 83
+			// command == 77
 			if (command == 48) {
 				String s = new String(packetData, 1, length - 1);
 				handleServerMessage(s);
@@ -301,7 +304,7 @@ public abstract class GameWindowMiddleMan extends GameWindow {
 			}
 			if (command == 222) {
 				sendLogoutPacket();
-			
+
 			}
 			if (command == 136) {
 				cantLogout();
