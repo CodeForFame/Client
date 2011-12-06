@@ -3,6 +3,7 @@ package org.rscdaemon.client.entityhandling;
 import java.util.ArrayList;
 
 import org.rscdaemon.client.mudclient;
+import org.rscdaemon.client.cache.CacheManager;
 import org.rscdaemon.client.util.PersistenceManager;
 
 import defs.DoorDef;
@@ -162,35 +163,25 @@ public class EntityHandler {
 	}
 
 	public static void load() {
-		npcs = (NPCDef[]) PersistenceManager.load(mudclient
-				.loadCachedFile("NPCs.rscd"));
+		npcs = (NPCDef[]) PersistenceManager.load(CacheManager.load("NPCs.rscd"));
 		mudclient.drawDownloadProgress("Checking local data files", 3, false);
-		items = (ItemDef[]) PersistenceManager.load(mudclient
-				.loadCachedFile("Items.rscd"));
+		items = (ItemDef[]) PersistenceManager.load(CacheManager.load("Items.rscd"));
 		mudclient.drawDownloadProgress("Checking local data files", 5, false);
-		textures = (TextureDef[]) PersistenceManager.load(mudclient
-				.loadCachedFile("Textures.rscd"));
+		textures = (TextureDef[]) PersistenceManager.load(CacheManager.load("Textures.rscd"));
 		mudclient.drawDownloadProgress("Checking local data files", 7, false);
-		animations = (AnimationDef[]) PersistenceManager.load(mudclient
-				.loadCachedFile("Animations.rscd"));
+		animations = (AnimationDef[]) PersistenceManager.load(CacheManager.load("Animations.rscd"));
 		mudclient.drawDownloadProgress("Checking local data files", 9, false);
-		spells = (SpellDef[]) PersistenceManager.load(mudclient
-				.loadCachedFile("Spells.rscd"));
+		spells = (SpellDef[]) PersistenceManager.load(CacheManager.load("Spells.rscd"));
 		mudclient.drawDownloadProgress("Checking local data files", 11, false);
-		prayers = (PrayerDef[]) PersistenceManager.load(mudclient
-				.loadCachedFile("Prayers.rscd"));
+		prayers = (PrayerDef[]) PersistenceManager.load(CacheManager.load("Prayers.rscd"));
 		mudclient.drawDownloadProgress("Checking local data files", 13, false);
-		tiles = (TileDef[]) PersistenceManager.load(mudclient
-				.loadCachedFile("Tiles.rscd"));
+		tiles = (TileDef[]) PersistenceManager.load(CacheManager.load("Tiles.rscd"));
 		mudclient.drawDownloadProgress("Checking local data files", 15, false);
-		doors = (DoorDef[]) PersistenceManager.load(mudclient
-				.loadCachedFile("Doors.rscd"));
+		doors = (DoorDef[]) PersistenceManager.load(CacheManager.load("Doors.rscd"));
 		mudclient.drawDownloadProgress("Checking local data files", 17, false);
-		elevation = (ElevationDef[]) PersistenceManager.load(mudclient
-				.loadCachedFile("Elevation.rscd"));
+		elevation = (ElevationDef[]) PersistenceManager.load(CacheManager.load("Elevation.rscd"));
 		mudclient.drawDownloadProgress("Checking local data files", 19, false);
-		objects = (GameObjectDef[]) PersistenceManager.load(mudclient
-				.loadCachedFile("Objects.rscd"));
+		objects = (GameObjectDef[]) PersistenceManager.load(CacheManager.load("Objects.rscd"));
 		mudclient.drawDownloadProgress("Checking local data files", 21, false);
 
 		for (int id = 0; id < items.length; id++) {
