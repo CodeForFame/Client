@@ -7142,14 +7142,14 @@ public class mudclient extends GameWindowMiddleMan {
 				return;
 			}
 			if (command == 109) {
-				if (needsClear) {
+				/*if (needsClear) {
 					for (int i = 0; i < groundItemType.length; i++) {
 						groundItemType[i] = -1;
 						groundItemX[i] = -1;
 						groundItemY[i] = -1;
 					}
 					needsClear = false;
-				}
+				}*/
 				for (int l = 1; l < length;)
 					if (DataOperations.getUnsignedByte(data[l]) == 255) { // ???
 						int newCount = 0;
