@@ -1,4 +1,4 @@
-package org.rscdaemon.client;
+package org.rscangel.client;
 
 import java.awt.*;
 
@@ -7,10 +7,15 @@ public final class GameImageMiddleMan extends GameImage {
 	public GameImageMiddleMan(int width, int height, int k, Component component) {
 		super(width, height, k, component);
 	}
-
+	
+	/*
+	public GameImageMiddleMan(int width, int height, Component component) {
+		super(width, height, component);
+	}
+	*/
 	public final void method245(int i, int j, int k, int l, int i1, int j1,
 			int k1) {
-		if (i1 == 39999) i1++; // Seems to fix 'Red Dot Bug'
+		try {
 		if (i1 >= 50000) {
 			_mudclient.method71(i, j, k, l, i1 - 50000, j1, k1);
 			return;
@@ -28,6 +33,8 @@ public final class GameImageMiddleMan extends GameImage {
 			return;
 		}
 		super.spriteClip1(i, j, k, l, i1);
+		} catch (ArrayIndexOutOfBoundsException e) {
+		}
 	}
 
 	public mudclient _mudclient;
