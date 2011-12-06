@@ -68,7 +68,7 @@ public class ErrorWindow extends javax.swing.JFrame {
                 try {  
                 	String data = URLEncoder.encode("report", "UTF-8") + "=" + URLEncoder.encode(jTextArea1.getText(), "UTF-8"); 
                 	data += "&" +  URLEncoder.encode("email", "UTF-8") + "=" + URLEncoder.encode(email, "UTF-8");
-                	URL url = new URL("http://rscangel.org/crash.php"); 
+                	URL url = new URL(Config.CRASH_URL); 
                 	URLConnection conn = url.openConnection(); 
                 	conn.setDoOutput(true); 
                 	OutputStreamWriter wr = new OutputStreamWriter(conn.getOutputStream()); 
@@ -86,7 +86,7 @@ public class ErrorWindow extends javax.swing.JFrame {
                 			JOptionPane.showMessageDialog(null, "It appears you just sent in a report! Please wait atleast a minute to send in another one");
                 			}
                 		else {
-                			JOptionPane.showMessageDialog(null, "There was an error while submitting the report, please post the text in the white box on forums at http://rscangel.org/forums");
+                			JOptionPane.showMessageDialog(null, "There was an error while submitting the report, please post the text in the white box on forums at " + Config.SERVER_IP);
                 			}
                 		} 
                 	wr.close(); 

@@ -1,5 +1,6 @@
 package org.rscdaemon.client;
 
+import org.rscdaemon.client.cache.CacheManager;
 import org.rscdaemon.client.entityhandling.EntityHandler;
 import org.rscdaemon.client.model.Sector;
 import org.rscdaemon.client.util.Config;
@@ -1427,8 +1428,7 @@ public class EngineHandle {
 		sectors = new Sector[4];
 
 		try {
-			tileArchive = new ZipFile(mudclient
-					.loadCachedFile("F2PLandscape.rscd"));
+			tileArchive = new ZipFile(CacheManager.load("F2PLandscape.rscd"));
 		} catch (Exception e) {
 			e.printStackTrace();
 			System.exit(1);

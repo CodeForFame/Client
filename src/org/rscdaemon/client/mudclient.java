@@ -19,6 +19,7 @@ import java.util.Map.Entry;
 
 import javax.imageio.ImageIO;
 
+import org.rscdaemon.client.cache.CacheManager;
 import org.rscdaemon.client.entityhandling.EntityHandler;
 import org.rscdaemon.client.gui.OneonOne;
 import org.rscdaemon.client.gui.QuestionMenuScreen;
@@ -94,7 +95,6 @@ public class mudclient extends GameWindowMiddleMan {
 	public static final void main(String[] args) throws Exception {// Duel with
 		mc = new mudclient();
 		mc.appletMode = false;
-		loadCachedFile("Loading.rscd");
 		mc.setLogo(Toolkit.getDefaultToolkit().getImage(
 				Config.CONF_DIR + File.separator + "Loading.rscd"));
 		mc.createWindow(mc.windowWidth, mc.windowHeight + 15 - 8,
@@ -951,8 +951,8 @@ public class mudclient extends GameWindowMiddleMan {
 		} else {
 			k = 0xffffff;
 		}
-		gameGraphics.drawText("3: RSCA Staff impersonation", 256 + xAddition,
-				i, 1, k);
+		gameGraphics.drawText("3: Staff impersonation", 256 + xAddition, i, 1,
+				k);
 		i += 14;
 		if (abuseSelectedType == 4) {
 			gameGraphics.drawBoxEdge(66 + xAddition, i - 12, 380, 15, 0xffffff);
@@ -1291,8 +1291,9 @@ public class mudclient extends GameWindowMiddleMan {
 			g.setFont(new Font("Helvetica", 1, 16));
 			g.setColor(Color.yellow);
 			int i = 35;
-			g.drawString("Sorry, an error has occured whilst loading RSCA", 30,
-					i);
+			g.drawString(
+					"Sorry, an error has occured whilst loading the client",
+					30, i);
 			i += 50;
 			g.setColor(Color.white);
 			g.drawString("To fix this try the following (in order):", 30, i);
@@ -1311,7 +1312,7 @@ public class mudclient extends GameWindowMiddleMan {
 			i += 30;
 			g.drawString("4: Try rebooting your computer", 30, i);
 			i += 30;
-			g.drawString("5: Post on the RSCA forums under support", 30, i);
+			g.drawString("5: Post on the forums under support", 30, i);
 			changeThreadSleepModifier(1);
 			return;
 		}
@@ -1325,7 +1326,7 @@ public class mudclient extends GameWindowMiddleMan {
 			g2.drawString("Close ALL unnecessary programs", 50, 100);
 			g2.drawString("and windows before loading the game", 50, 150);
 			g2.drawString(
-					"RSCA needs about 100mb of spare RAM, 300+mb to Record video",
+					"The client needs about 100mb of spare RAM, 300+mb to Record video",
 					50, 200);
 			changeThreadSleepModifier(1);
 			return;
@@ -4112,10 +4113,9 @@ public class mudclient extends GameWindowMiddleMan {
 		super.yOffset = 0;
 		GameWindowMiddleMan.maxPacketReadCount = 500;
 		if (appletMode) {
-			loadCachedFile("Loading.rscd");
+			CacheManager.load("Loading.rscd");
 			setLogo(Toolkit.getDefaultToolkit().getImage(
-					System.getProperty("user.home") + File.separator + "rsca"
-							+ File.separator + "Loading.rscd"));
+					Config.CONF_DIR + File.separator + "Loading.rscd"));
 		}
 
 		loadConfigFilter(); // 15%
@@ -4177,6 +4177,7 @@ public class mudclient extends GameWindowMiddleMan {
 		loadSounds(); // 90%
 		if (lastLoadedNull)
 			return;
+		CacheManager.doneLoading();
 		drawDownloadProgress("Starting game...", 100, false);
 		drawGameMenu();
 		makeLoginMenus();
@@ -5201,7 +5202,7 @@ public class mudclient extends GameWindowMiddleMan {
 	}
 
 	protected final byte[] load(String filename) {
-		mudclient.loadCachedFile(filename);
+		CacheManager.load(filename);
 		return super.load(Config.CONF_DIR + File.separator + filename);
 	}
 
@@ -7146,7 +7147,9 @@ public class mudclient extends GameWindowMiddleMan {
 						groundItemType[i] = -1;
 						groundItemX[i] = -1;
 						groundItemY[i] = -1;
+						groundItemObjectVar[i] = -1;
 					}
+					groundItemCount = 0;
 					needsClear = false;
 				}
 				for (int l = 1; l < length;)
@@ -9869,22 +9872,6 @@ public class mudclient extends GameWindowMiddleMan {
 			return file;
 		} else
 			return null;
-	}
-
-	public static File loadCachedFile(String filename) {
-		File f = new File(Config.CONF_DIR + File.separator + filename);
-		System.out.printf("Checking for %s.%n", f.getAbsolutePath());
-		if (!f.exists()) {
-			try {
-				Downloader.download(f);
-			} catch (Exception e) {
-				e.printStackTrace();
-				System.out.printf("Failed to load %s.", f.getName());
-				System.exit(1);
-			}
-			return loadCachedFile(filename);
-		} else
-			return f;
 	}
 
 	public void setSectionX(int sectionX) {

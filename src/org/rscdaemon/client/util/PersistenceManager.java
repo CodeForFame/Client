@@ -21,7 +21,7 @@ public class PersistenceManager {
 		addAlias("DoorDef", "defs.DoorDef");
 		addAlias("ElevationDef", "defs.ElevationDef");
 		addAlias("GameObjectDef", "defs.GameObjectDef");
-		addAlias("org.rscangel.spriteeditor.Sprite",
+		addAlias("org.rscdaemon.spriteeditor.Sprite",
 				"org.rscdaemon.client.model.Sprite");
 	}
 
