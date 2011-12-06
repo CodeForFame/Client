@@ -17,6 +17,7 @@ import java.nio.ByteBuffer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+import org.rscdaemon.client.cache.CacheManager;
 import org.rscdaemon.client.model.Sprite;
 import org.rscdaemon.client.util.DataConversions;
 
@@ -49,7 +50,7 @@ public class GameImage implements ImageProducer, ImageObserver {
 		}
 		try {
 			spriteArchive = new ZipFile(
-					mudclient.loadCachedFile("Sprites.rscd"));
+					CacheManager.load("Sprites.rscd"));
 		} catch (Exception e) {
 			e.printStackTrace();
 			System.exit(1);

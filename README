@@ -1,0 +1,4 @@
+The files in the cache dir should be hosted by the site you're downloading the cache from.
+
+To easily generate a new MD5CHECKSUM file use this project--
+https://github.com/Joe0/MD5-Checksum

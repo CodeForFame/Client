@@ -19,6 +19,7 @@ import java.util.Map.Entry;
 
 import javax.imageio.ImageIO;
 
+import org.rscdaemon.client.cache.CacheManager;
 import org.rscdaemon.client.entityhandling.EntityHandler;
 import org.rscdaemon.client.gui.OneonOne;
 import org.rscdaemon.client.gui.QuestionMenuScreen;
@@ -94,7 +95,6 @@ public class mudclient extends GameWindowMiddleMan {
 	public static final void main(String[] args) throws Exception {// Duel with
 		mc = new mudclient();
 		mc.appletMode = false;
-		loadCachedFile("Loading.rscd");
 		mc.setLogo(Toolkit.getDefaultToolkit().getImage(
 				Config.CONF_DIR + File.separator + "Loading.rscd"));
 		mc.createWindow(mc.windowWidth, mc.windowHeight + 15 - 8,
@@ -4113,7 +4113,7 @@ public class mudclient extends GameWindowMiddleMan {
 		super.yOffset = 0;
 		GameWindowMiddleMan.maxPacketReadCount = 500;
 		if (appletMode) {
-			loadCachedFile("Loading.rscd");
+			CacheManager.load("Loading.rscd");
 			setLogo(Toolkit.getDefaultToolkit().getImage(
 					Config.CONF_DIR + File.separator + "Loading.rscd"));
 		}
@@ -4177,6 +4177,7 @@ public class mudclient extends GameWindowMiddleMan {
 		loadSounds(); // 90%
 		if (lastLoadedNull)
 			return;
+		CacheManager.doneLoading();
 		drawDownloadProgress("Starting game...", 100, false);
 		drawGameMenu();
 		makeLoginMenus();
@@ -5201,7 +5202,7 @@ public class mudclient extends GameWindowMiddleMan {
 	}
 
 	protected final byte[] load(String filename) {
-		mudclient.loadCachedFile(filename);
+		CacheManager.load(filename);
 		return super.load(Config.CONF_DIR + File.separator + filename);
 	}
 
@@ -9869,22 +9870,6 @@ public class mudclient extends GameWindowMiddleMan {
 			return file;
 		} else
 			return null;
-	}
-
-	public static File loadCachedFile(String filename) {
-		File f = new File(Config.CONF_DIR + File.separator + filename);
-		System.out.printf("Checking for %s.%n", f.getAbsolutePath());
-		if (!f.exists()) {
-			try {
-				Downloader.download(f);
-			} catch (Exception e) {
-				e.printStackTrace();
-				System.out.printf("Failed to load %s.", f.getName());
-				System.exit(1);
-			}
-			return loadCachedFile(filename);
-		} else
-			return f;
 	}
 
 	public void setSectionX(int sectionX) {
