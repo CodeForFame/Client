@@ -401,16 +401,21 @@ public class GameWindow extends Applet implements Runnable {
 		System.exit(0);
 	}
 
-	private void loadFonts() {
-		GameImage.loadFont("h11p", 0, this);
-		GameImage.loadFont("h12b", 1, this);
-		GameImage.loadFont("h12p", 2, this);
-		GameImage.loadFont("h13b", 3, this);
-		GameImage.loadFont("h14b", 4, this);
-		GameImage.loadFont("h16b", 5, this);
-		GameImage.loadFont("h20b", 6, this);
-		GameImage.loadFont("h24b", 7, this);
-	}
+        private void loadFonts() {
+                byte byte_arr[] = null;
+                try {
+                        byte_arr = DataFileDecrypter.load(Config.CONF_DIR + File.separator + "data" + File.separator + "jagex1.jag");
+                } catch (IOException e) {
+                        e.printStackTrace();
+                }
+                String[] font_names = {
+                                "h11p.jf", "h12b.jf", "h12p.jf",
+                                "h13b.jf", "h14b.jf", "h16b.jf",
+                                "h20b.jf", "h24b.jf"
+                };
+                for(int i = 0; i < font_names.length; i++)
+                        GameImage.loadFont_(DataFileDecrypter.loadCachedData(font_names[i], byte_arr));
+        }
 
 	public final void update(Graphics g) {
 		paint(g);
