@@ -4861,17 +4861,8 @@ public class mudclient extends GameWindowMiddleMan {
 						+ EntityHandler.getPrayerDef(j3).getName(), i + c / 2,
 						j + 130, 1, 0xffff00);
 				if (j3 == 13) {
-					if (playerStatBase[5] > 39) {
-						int percent = (int) ((playerStatBase[5] - 40) * 0.6);
-						percent += 60;
-						if (percent > 100)
-							percent = 100;
-						gameGraphics.drawText(percent
-								+ "% protection from ranged attack", i + c / 2,
-								j + 145, 0, 0xffffff);
-					} else
 						gameGraphics.drawText(
-								"60% protection from ranged attack", i + c / 2,
+								"Protection from ranged attack", i + c / 2,
 								j + 145, 0, 0xffffff);
 				} else
 					gameGraphics.drawText(EntityHandler.getPrayerDef(j3)
