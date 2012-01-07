@@ -18,7 +18,7 @@ public class Config {
 	public static long START_TIME = System.currentTimeMillis();
 	public static String CACHE_URL = "http://216.24.201.81/cache/";
 
-	public static final int CLIENT_VERSION = 39;
+	public static final int CLIENT_VERSION = 40;
 	protected static final String CRASH_URL = "http://" + SERVER_IP
 			+ "/crash.php";
 

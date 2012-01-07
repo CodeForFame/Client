@@ -69,7 +69,7 @@ public abstract class GameWindowMiddleMan extends GameWindow {
 				dataEncryption.addByte(1);
 			else
 				dataEncryption.addByte(0);
-			dataEncryption.add4ByteInt(39);
+			dataEncryption.add4ByteInt(Config.CLIENT_VERSION);
 			dataEncryption.add4ByteInt(sessionRotationKeys[0]);
 			dataEncryption.add4ByteInt(sessionRotationKeys[1]);
 			dataEncryption.add4ByteInt(sessionRotationKeys[2]);
