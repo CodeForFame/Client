@@ -1516,61 +1516,10 @@ public class GameImage implements ImageProducer, ImageObserver {
 		}
 	}
 
-	private static boolean loadFont_(String smallName, int fontNumber,
-			GameWindow gameWindow) {
-		boolean flag = false;
-		boolean addCharWidth = false;
-		smallName = smallName.toLowerCase();
-		if (smallName.startsWith("helvetica"))
-			smallName = smallName.substring(9);
-		if (smallName.startsWith("h"))
-			smallName = smallName.substring(1);
-		if (smallName.startsWith("f")) {
-			smallName = smallName.substring(1);
-			flag = true;
-		}
-		if (smallName.startsWith("d")) {
-			smallName = smallName.substring(1);
-			addCharWidth = true;
-		}
-		if (smallName.endsWith(".jf"))
-			smallName = smallName.substring(0, smallName.length() - 3);
-		int style = 0;
-		if (smallName.endsWith("b")) {
-			style = 1;
-			smallName = smallName.substring(0, smallName.length() - 1);
-		}
-		if (smallName.endsWith("p"))
-			smallName = smallName.substring(0, smallName.length() - 1);
-		int size = Integer.parseInt(smallName);
-		Font font = new Font("Helvetica", style, size);
-		FontMetrics fontmetrics = gameWindow.getFontMetrics(font);
-		String charSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!\"\243$%^&*()-_=+[{]};:'@#~,<.>/?\\| ";
-		anInt350 = 855;
-		for (int charSetOffset = 0; charSetOffset < 95; charSetOffset++)
-			drawLetter(font, fontmetrics, charSet.charAt(charSetOffset),
-					charSetOffset, gameWindow, fontNumber, addCharWidth);
-
-		aByteArrayArray336[fontNumber] = new byte[anInt350];
-		for (int i1 = 0; i1 < anInt350; i1++) {
-			try {
-				aByteArrayArray336[fontNumber][i1] = aByteArray351[i1];
-			} catch (Exception e) {
-				e.printStackTrace();
-				return false;
-			}
-		}
-
-		if (style == 1 && aBooleanArray349[fontNumber]) {
-			aBooleanArray349[fontNumber] = false;
-			loadFont("f" + size + "p", fontNumber, gameWindow);
-		}
-		if (flag && !aBooleanArray349[fontNumber]) {
-			aBooleanArray349[fontNumber] = false;
-			loadFont("d" + size + "p", fontNumber, gameWindow);
-		}
-		return true;
-	}
+        public static int loadFont_(byte font_arr[]) {
+                aByteArrayArray336[anInt350] = font_arr;
+                return anInt350++;
+        }
 
 	public static void drawLetter(Font font, FontMetrics fontmetrics,
 			char letter, int charSetOffset, GameWindow gameWindow,
