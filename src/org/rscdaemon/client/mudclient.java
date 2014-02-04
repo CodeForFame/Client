@@ -90,7 +90,8 @@ public class mudclient extends GameWindowMiddleMan {
 	private int questMenuHandle;
 	private int questPoints = 0;// camera error
 	public static boolean showPackets = false;
-	static mudclient mc;
+	public static mudclient mc;
+	public boolean memberServer = false;
 
 	public static final void main(String[] args) throws Exception {// Duel with
 		mc = new mudclient();
@@ -105,7 +106,7 @@ public class mudclient extends GameWindowMiddleMan {
 		 */
 		mc.messagesArray = new String[5];
 		mc.messagesTimeout = new int[mc.messagesArray.length];
-
+		
 	}
 
 	public static Resolutions reso = new Resolutions();
@@ -3723,18 +3724,20 @@ public class mudclient extends GameWindowMiddleMan {
 								menuActionType[menuLength] = playerArray[i2].serverIndex;
 								menuLength++;
 							} else {
-								menuText1[menuLength] = "Duel with";
-								menuText2[menuLength] = (playerArray[i2].admin == 1 ? "#pmd#"
-										: "")
-										+ (playerArray[i2].admin == 2 ? "#mod#"
-												: "")
-										+ "@whi@"
-										+ playerArray[i2].name + s;
-								menuActionX[menuLength] = playerArray[i2].currentX;
-								menuActionY[menuLength] = playerArray[i2].currentY;
-								menuID[menuLength] = 2806;
-								menuActionType[menuLength] = playerArray[i2].serverIndex;
-								menuLength++;
+								if (memberServer) {
+									menuText1[menuLength] = "Duel with";
+									menuText2[menuLength] = (playerArray[i2].admin == 1 ? "#pmd#"
+											: "")
+											+ (playerArray[i2].admin == 2 ? "#mod#"
+													: "")
+											+ "@whi@"
+											+ playerArray[i2].name + s;
+									menuActionX[menuLength] = playerArray[i2].currentX;
+									menuActionY[menuLength] = playerArray[i2].currentY;
+									menuID[menuLength] = 2806;
+									menuActionType[menuLength] = playerArray[i2].serverIndex;
+									menuLength++;
+								}
 							}
 
 							menuText1[menuLength] = "Trade with";
@@ -7008,6 +7011,7 @@ public class mudclient extends GameWindowMiddleMan {
 				int i = 1;
 				serverStartTime = DataOperations.getUnsigned8Bytes(data, i);
 				i += 8;
+				memberServer = DataOperations.getUnsignedByte(data[i++]) == 1;
 				serverLocation = new String(data, i, length - i);
 				return;
 			}
